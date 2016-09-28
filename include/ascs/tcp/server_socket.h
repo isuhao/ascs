@@ -98,7 +98,6 @@ protected:
 #else
 		server.del_client(std::dynamic_pointer_cast<timer>(this->shared_from_this()));
 #endif
-
 		this->shutdown_state = 0;
 	}
 

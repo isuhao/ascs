@@ -50,7 +50,7 @@ using namespace ascs::ext::tcp;
 
 int main(int argc, const char* argv[])
 {
-	printf("usage: asio_client [<port=%d> [ip=%s]]\n", ASCS_SERVER_PORT + 100, ASCS_SERVER_IP);
+	printf("usage: %s [<port=%d> [ip=%s]]\n", argv[0], ASCS_SERVER_PORT + 100, ASCS_SERVER_IP);
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
 	else

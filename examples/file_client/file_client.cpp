@@ -19,7 +19,7 @@ fl_type file_size;
 int main(int argc, const char* argv[])
 {
 	puts("this is a file transfer client.");
-	printf("usage: file_client [<port=%d> [<ip=%s> [link num=1]]]\n", ASCS_SERVER_PORT, ASCS_SERVER_IP);
+	printf("usage: %s [<port=%d> [<ip=%s> [link num=1]]]\n", argv[0], ASCS_SERVER_PORT, ASCS_SERVER_IP);
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
 	else

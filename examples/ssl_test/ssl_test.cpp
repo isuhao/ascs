@@ -20,7 +20,7 @@ using namespace ascs::ext::ssl;
 
 int main(int argc, const char* argv[])
 {
-	puts("Directories certs and client_certs must be in the current directory.");
+	puts("Directories 'certs' and 'client_certs' must available in current directory.");
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
 	else

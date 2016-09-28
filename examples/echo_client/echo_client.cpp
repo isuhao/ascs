@@ -146,10 +146,10 @@ private:
 	size_t recv_index, msg_num;
 };
 
-class test_client : public client_base<echo_socket>
+class echo_client : public client_base<echo_socket>
 {
 public:
-	test_client(service_pump& service_pump_) : client_base<echo_socket>(service_pump_) {}
+	echo_client(service_pump& service_pump_) : client_base<echo_socket>(service_pump_) {}
 
 	uint64_t get_recv_bytes()
 	{
@@ -173,15 +173,15 @@ public:
 
 	void shutdown_some_client(size_t n)
 	{
-		static auto test_index = -1;
-		++test_index;
+		static auto index = -1;
+		++index;
 
-		switch (test_index % 6)
+		switch (index % 6)
 		{
 #ifdef ASCS_CLEAR_OBJECT_INTERVAL
 			//method #1
 			//notice: these methods need to define ASCS_CLEAR_OBJECT_INTERVAL macro, because it just shut down the socket,
-			//not really remove them from object pool, this will cause test_client still send data via them, and wait responses from them.
+			//not really remove them from object pool, this will cause echo_client still send data via them, and wait responses from them.
 			//for this scenario, the smaller ASCS_CLEAR_OBJECT_INTERVAL macro is, the better experience you will get, so set it to 1 second.
 		case 0: do_something_to_one([&n](const auto& item) {return n-- > 0 ? item->graceful_shutdown(), false : true;});				break;
 		case 1: do_something_to_one([&n](const auto& item) {return n-- > 0 ? item->graceful_shutdown(false, false), false : true;});	break;
@@ -211,7 +211,7 @@ public:
 
 int main(int argc, const char* argv[])
 {
-	printf("usage: test_client [<service thread number=1> [<port=%d> [<ip=%s> [link num=16]]]]\n", ASCS_SERVER_PORT, ASCS_SERVER_IP);
+	printf("usage: %s [<service thread number=1> [<port=%d> [<ip=%s> [link num=16]]]]\n", argv[0], ASCS_SERVER_PORT, ASCS_SERVER_IP);
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
 	else
@@ -222,11 +222,11 @@ int main(int argc, const char* argv[])
 	if (argc > 4)
 		link_num = std::min(ASCS_MAX_OBJECT_NUM, std::max(atoi(argv[4]), 1));
 
-	printf("exec: test_client with " ASCS_SF " links\n", link_num);
+	printf("exec: %s with " ASCS_SF " links\n", argv[0], link_num);
 	///////////////////////////////////////////////////////////
 
 	service_pump sp;
-	test_client client(sp);
+	echo_client client(sp);
 	//echo client means to cooperate with echo server while doing performance test, it will not send msgs back as echo server does,
 	//otherwise, dead loop will occur, network resource will be exhausted.
 

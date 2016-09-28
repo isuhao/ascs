@@ -131,7 +131,7 @@ public:
 
 int main(int argc, const char* argv[])
 {
-	printf("usage: asio_server [<service thread number=1> [<port=%d> [ip=0.0.0.0]]]\n", ASCS_SERVER_PORT);
+	printf("usage: %s [<service thread number=1> [<port=%d> [ip=0.0.0.0]]]\n", argv[0], ASCS_SERVER_PORT);
 	puts("normal server's port will be 100 larger.");
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
@@ -202,18 +202,18 @@ int main(int argc, const char* argv[])
 		{
 			//broadcast series functions call pack_msg for each client respectively, because clients may used different protocols(so different type of packers, of course)
 //			server_.broadcast_msg(str.data(), str.size() + 1);
-			//send \0 character too, because asio_client used basic_buffer as its msg type, it will not append \0 character automatically as std::string does,
+			//send \0 character too, because demo client used basic_buffer as its msg type, it will not append \0 character automatically as std::string does,
 			//so need \0 character when printing it.
 
 			//if all clients used the same protocol, we can pack msg one time, and send it repeatedly like this:
 			packer p;
 			auto msg = p.pack_msg(str.data(), str.size() + 1);
-			//send \0 character too, because asio_client used basic_buffer as its msg type, it will not append \0 character automatically as std::string does,
+			//send \0 character too, because demo client used basic_buffer as its msg type, it will not append \0 character automatically as std::string does,
 			//so need \0 character when printing it.
 			if (!msg.empty())
 				server_.do_something_to_all([&msg](const auto& item) {item->direct_send_msg(msg);});
 
-			//if asio_client is using stream_unpacker
+			//if demo client is using stream_unpacker
 //			if (!str.empty())
 //				server_.do_something_to_all([&str](const auto& item) {item->direct_send_msg(str);});
 		}
