@@ -20,6 +20,13 @@
  * Need c++14, if your compiler detected duplicated 'shared_mutex' definition, please define ASCS_HAS_STD_SHARED_MUTEX macro.
  * Need to define ASIO_STANDALONE and ASIO_HAS_STD_CHRONO macros.
  *
+ * 2016.10.xx	version 1.1.0
+ * Add a semi-automatic congestion control.
+ * Drop original congestion control, because it cannot totally resolve dead loop.
+ * Drop post_msg_buffer and corresponding functions (like post_msg()), timer (ascs::socket::TIMER_HANDLE_POST_BUFFER).
+ * ascs::timer now can be used independently.
+ * Add a new type ascs::st_timer::tid to represent timer ID. 
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
@@ -29,8 +36,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10000	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.0.0"
+#define ASCS_VER		10100	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.0"
 
 //asio and compiler check
 #ifdef _MSC_VER

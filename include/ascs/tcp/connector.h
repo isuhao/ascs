@@ -24,10 +24,10 @@ protected:
 	typedef socket_base<Socket, Packer, Unpacker> super;
 
 public:
-	static const unsigned char TIMER_BEGIN = super::TIMER_END;
-	static const unsigned char TIMER_CONNECT = TIMER_BEGIN;
-	static const unsigned char TIMER_ASYNC_SHUTDOWN = TIMER_BEGIN + 1;
-	static const unsigned char TIMER_END = TIMER_BEGIN + 10;
+	static const timer::tid TIMER_BEGIN = super::TIMER_END;
+	static const timer::tid TIMER_CONNECT = TIMER_BEGIN;
+	static const timer::tid TIMER_ASYNC_SHUTDOWN = TIMER_BEGIN + 1;
+	static const timer::tid TIMER_END = TIMER_BEGIN + 10;
 
 	connector_base(asio::io_service& io_service_) : super(io_service_), connected(false), reconnecting(true)
 		{set_server_addr(ASCS_SERVER_PORT, ASCS_SERVER_IP);}
@@ -162,7 +162,7 @@ protected:
 	}
 
 private:
-	bool async_shutdown_handler(unsigned char id, size_t loop_num)
+	bool async_shutdown_handler(timer::tid id, size_t loop_num)
 	{
 		assert(TIMER_ASYNC_SHUTDOWN == id);
 

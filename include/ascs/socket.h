@@ -120,7 +120,7 @@ public:
 		uint_fast64_t recv_byte_sum; //include msgs in receiving buffer
 		stat_duration dispatch_dealy_sum; //from parse_msg(exclude msg unpacking) to on_msg_handle
 		stat_duration recv_idle_sum;
-		//during this duration, socket suspended msg reception because of full receiving buffer or posting msgs
+		//during this duration, socket suspended msg reception (receiving buffer overflow, msg dispatching suspended or doing congestion control)
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 		stat_duration handle_time_1_sum; //on_msg consumed time, this indicate the efficiency of msg handling
 #endif
@@ -143,12 +143,11 @@ protected:
 	typedef list<in_msg> in_container_type;
 	typedef list<out_msg> out_container_type;
 
-	static const unsigned char TIMER_BEGIN = timer::TIMER_END;
-	static const unsigned char TIMER_DISPATCH_MSG = TIMER_BEGIN;
-	static const unsigned char TIMER_HANDLE_POST_BUFFER = TIMER_BEGIN + 1;
-	static const unsigned char TIMER_RE_DISPATCH_MSG = TIMER_BEGIN + 2;
-	static const unsigned char TIMER_DELAY_CLOSE = TIMER_BEGIN + 3;
-	static const unsigned char TIMER_END = TIMER_BEGIN + 10;
+	static const tid TIMER_BEGIN = timer::TIMER_END;
+	static const tid TIMER_DISPATCH_MSG = TIMER_BEGIN;
+	static const tid TIMER_RE_DISPATCH_MSG = TIMER_BEGIN + 1;
+	static const tid TIMER_DELAY_CLOSE = TIMER_BEGIN + 2;
+	static const tid TIMER_END = TIMER_BEGIN + 10;
 
 	socket(asio::io_service& io_service_) : timer(io_service_), _id(-1), next_layer_(io_service_), packer_(std::make_shared<Packer>()), started_(false) {reset_state();}
 	template<typename Arg>
@@ -167,9 +166,8 @@ protected:
 	{
 		packer_->reset_state();
 
-		posting = false;
-		sending = suspend_send_msg_ = false;
-		dispatching = suspend_dispatch_msg_ = false;
+		sending = paused_sending = false;
+		dispatching = paused_dispatching = congestion_controlling = false;
 #ifndef ASCS_ENHANCED_STABILITY
 		closing = false;
 #endif
@@ -178,7 +176,6 @@ protected:
 
 	void clear_buffer()
 	{
-		post_msg_buffer.clear();
 		send_msg_buffer.clear();
 		recv_msg_buffer.clear();
 		temp_msg_buffer.clear();
@@ -200,15 +197,15 @@ public:
 
 	virtual bool obsoleted()
 	{
-		if (started() ||
 #ifndef ASCS_ENHANCED_STABILITY
-			closing ||
-#endif
-			this->is_async_calling())
+		if (started() || closing || this->is_async_calling())
 			return false;
 
 		std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex, std::try_to_lock);
 		return lock.owns_lock() && recv_msg_buffer.empty(); //if successfully locked, means this socket is idle
+#else
+		return !started() && !this->is_async_calling();
+#endif
 	}
 
 	bool started() const {return started_;}
@@ -225,15 +222,14 @@ public:
 		return do_send_msg();
 	}
 
-	void suspend_send_msg(bool suspend) {if (!(suspend_send_msg_ = suspend)) send_msg();}
-	bool suspend_send_msg() const {return suspend_send_msg_;}
+	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
+	bool suspend_send_msg() const {return paused_sending;}
 
-	void suspend_dispatch_msg(bool suspend)
-	{
-		suspend_dispatch_msg_ = suspend;
-		do_dispatch_msg(true);
-	}
-	bool suspend_dispatch_msg() const {return suspend_dispatch_msg_;}
+	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) do_dispatch_msg(true);}
+	bool suspend_dispatch_msg() const {return paused_dispatching;}
+
+	void congestion_control(bool enable) {congestion_controlling = enable;}
+	bool congestion_control() const {return congestion_controlling;}
 
 	const struct statistic& get_statistic() const {return stat;}
 
@@ -246,45 +242,27 @@ public:
 
 	//if you use can_overflow = true to invoke send_msg or send_native_msg, it will always succeed no matter whether the send buffer is available or not,
 	//this can exhaust all virtual memory, please pay special attentions.
-	bool is_send_buffer_available()
-	{
-		std::shared_lock<std::shared_mutex> lock(send_msg_buffer_mutex);
-		return send_msg_buffer.size() < ASCS_MAX_MSG_NUM;
-	}
+	bool is_send_buffer_available() const {return send_msg_buffer.size() < ASCS_MAX_MSG_NUM;}
 
 	//don't use the packer but insert into send buffer directly
 	bool direct_send_msg(const InMsgType& msg, bool can_overflow = false) {return direct_send_msg(InMsgType(msg), can_overflow);}
 	bool direct_send_msg(InMsgType&& msg, bool can_overflow = false)
 	{
 		std::unique_lock<std::shared_mutex> lock(send_msg_buffer_mutex);
-		return can_overflow || send_msg_buffer.size() < ASCS_MAX_MSG_NUM ? do_direct_send_msg(std::move(msg)) : false;
-	}
-
-	bool direct_post_msg(const InMsgType& msg, bool can_overflow = false) {return direct_post_msg(InMsgType(msg), can_overflow);}
-	bool direct_post_msg(InMsgType&& msg, bool can_overflow = false)
-	{
-		if (direct_send_msg(std::move(msg), can_overflow))
-			return true;
-
-		std::unique_lock<std::shared_mutex> lock(post_msg_buffer_mutex);
-		return do_direct_post_msg(std::move(msg));
+		return can_overflow || is_send_buffer_available() ? do_direct_send_msg(std::move(msg)) : false;
 	}
 
 	//how many msgs waiting for sending or dispatching
-	GET_PENDING_MSG_NUM(get_pending_post_msg_num, post_msg_buffer, post_msg_buffer_mutex)
 	GET_PENDING_MSG_NUM(get_pending_send_msg_num, send_msg_buffer, send_msg_buffer_mutex)
 	GET_PENDING_MSG_NUM(get_pending_recv_msg_num, recv_msg_buffer, recv_msg_buffer_mutex)
 
-	PEEK_FIRST_PENDING_MSG(peek_first_pending_post_msg, post_msg_buffer, post_msg_buffer_mutex, InMsgType)
 	PEEK_FIRST_PENDING_MSG(peek_first_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, InMsgType)
 	PEEK_FIRST_PENDING_MSG(peek_first_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, OutMsgType)
 
-	POP_FIRST_PENDING_MSG(pop_first_pending_post_msg, post_msg_buffer, post_msg_buffer_mutex, InMsgType)
 	POP_FIRST_PENDING_MSG(pop_first_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, InMsgType)
 	POP_FIRST_PENDING_MSG(pop_first_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, OutMsgType)
 
 	//clear all pending msgs
-	POP_ALL_PENDING_MSG(pop_all_pending_post_msg, post_msg_buffer, post_msg_buffer_mutex, in_container_type)
 	POP_ALL_PENDING_MSG(pop_all_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, in_container_type)
 	POP_ALL_PENDING_MSG(pop_all_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, out_container_type)
 
@@ -294,7 +272,7 @@ protected:
 	virtual void do_recv_msg() = 0;
 
 	virtual bool is_closable() {return true;}
-	virtual bool is_send_allowed() {return !suspend_send_msg_;} //can send msg or not(just put into send buffer)
+	virtual bool is_send_allowed() {return !paused_sending;} //can send msg or not(just put into send buffer)
 
 	//generally, you don't have to rewrite this to maintain the status of connections(TCP)
 	virtual void on_send_error(const asio::error_code& ec) {unified_out::error_out("send msg error (%d %s)", ec.value(), ec.message().data());}
@@ -352,35 +330,32 @@ protected:
 	//call this in recv_handler (in subclasses) only
 	void dispatch_msg()
 	{
-		auto overflow = false;
+		decltype(temp_msg_buffer) temp_buffer;
+
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-		if (!temp_msg_buffer.empty())
+		if (!temp_msg_buffer.empty() && !paused_dispatching && !congestion_controlling)
 		{
-			if (suspend_dispatch_msg_ || posting)
-				overflow = true;
-			else
-			{
-				auto begin_time = statistic::now();
-				for (auto iter = std::begin(temp_msg_buffer); iter != std::end(temp_msg_buffer);)
-					if (on_msg(*iter))
-						temp_msg_buffer.erase(iter++);
-					else
-						++iter;
-				auto time_duration = statistic::now() - begin_time;
-				stat.handle_time_1_sum += time_duration;
-				stat.recv_idle_sum += time_duration;
-			}
+			auto begin_time = statistic::now();
+			for (auto iter = std::begin(temp_msg_buffer); !paused_dispatching && !congestion_controlling && iter != std::end(temp_msg_buffer);)
+				if (on_msg(*iter))
+					temp_msg_buffer.erase(iter++);
+				else
+					temp_buffer.splice(std::end(temp_buffer), temp_msg_buffer, iter++);
+
+			stat.handle_time_1_sum += statistic::now() - begin_time;
 		}
+#else
+		temp_buffer.swap(temp_msg_buffer);
 #endif
-		if (!overflow)
+
+		if (!temp_buffer.empty())
 		{
 			std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex);
-			recv_msg_buffer.splice(std::end(recv_msg_buffer), temp_msg_buffer);
-			overflow = recv_msg_buffer.size() > ASCS_MAX_MSG_NUM;
+			recv_msg_buffer.splice(std::end(recv_msg_buffer), temp_buffer);
 			do_dispatch_msg(false);
 		}
 
-		if (!overflow)
+		if (temp_msg_buffer.empty() && recv_msg_buffer.size() < ASCS_MAX_MSG_NUM)
 			do_recv_msg(); //receive msg sequentially, which means second receiving only after first receiving success
 		else
 		{
@@ -391,7 +366,7 @@ protected:
 
 	void do_dispatch_msg(bool need_lock)
 	{
-		if (suspend_dispatch_msg_ || posting)
+		if (paused_dispatching)
 			return;
 
 		std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex, std::defer_lock);
@@ -445,50 +420,14 @@ protected:
 		return true;
 	}
 
-	//must mutex post_msg_buffer before invoke this function
-	bool do_direct_post_msg(InMsgType&& msg)
-	{
-		if (!msg.empty())
-		{
-			post_msg_buffer.resize(post_msg_buffer.size() + 1);
-			post_msg_buffer.back().swap(msg);
-			if (!posting)
-			{
-				posting = true;
-				set_timer(TIMER_HANDLE_POST_BUFFER, 50, [this](auto id)->bool {return this->timer_handler(id);});
-			}
-		}
-
-		return true;
-	}
-
 private:
-	bool timer_handler(unsigned char id)
+	bool timer_handler(tid id)
 	{
 		switch (id)
 		{
-		case TIMER_DISPATCH_MSG: //delay putting msgs into receive buffer cause of receive buffer overflow
+		case TIMER_DISPATCH_MSG:
 			stat.recv_idle_sum += statistic::now() - recv_idle_begin_time;
 			dispatch_msg();
-			break;
-		case TIMER_HANDLE_POST_BUFFER:
-			{
-				std::unique_lock<std::shared_mutex> lock(post_msg_buffer_mutex);
-				{
-					std::unique_lock<std::shared_mutex> lock(send_msg_buffer_mutex);
-					if (splice_helper(send_msg_buffer, post_msg_buffer))
-						do_send_msg();
-				}
-
-				auto empty = post_msg_buffer.empty();
-				posting = !empty;
-				lock.unlock();
-
-				if (empty)
-					do_dispatch_msg(true);
-
-				return !empty; //continue the timer if some msgs still left behind
-			}
 			break;
 		case TIMER_RE_DISPATCH_MSG: //re-dispatch
 			do_dispatch_msg(true);
@@ -542,18 +481,17 @@ protected:
 	out_msg last_dispatch_msg;
 	std::shared_ptr<i_packer<typename Packer::msg_type>> packer_;
 
-	in_container_type post_msg_buffer, send_msg_buffer;
+	in_container_type send_msg_buffer;
 	out_container_type recv_msg_buffer, temp_msg_buffer;
 	//socket will invoke dispatch_msg() when got some msgs. if these msgs can't be pushed into recv_msg_buffer because of:
 	// 1. msg dispatching suspended;
 	// 2. post_msg_buffer not empty.
 	//socket will delay 50 milliseconds(non-blocking) to invoke dispatch_msg() again, and now, as you known, temp_msg_buffer is used to hold these msgs temporarily.
-	std::shared_mutex post_msg_buffer_mutex, send_msg_buffer_mutex;
+	std::shared_mutex send_msg_buffer_mutex;
 	std::shared_mutex recv_msg_buffer_mutex;
 
-	bool posting;
-	bool sending, suspend_send_msg_;
-	bool dispatching, suspend_dispatch_msg_;
+	bool sending, paused_sending;
+	bool dispatching, paused_dispatching, congestion_controlling;
 #ifndef ASCS_ENHANCED_STABILITY
 	bool closing;
 #endif

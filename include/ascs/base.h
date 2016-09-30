@@ -398,10 +398,6 @@ bool FUNNAME(const char* const pstr[], const size_t len[], size_t num, bool can_
 } \
 TCP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
 
-#define TCP_POST_MSG(FUNNAME, NATIVE) \
-bool FUNNAME(const char* const pstr[], const size_t len[], size_t num, bool can_overflow = false) {return this->direct_post_msg(this->packer_->pack_msg(pstr, len, num, NATIVE), can_overflow);} \
-TCP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
-
 //guarantee send msg successfully even if can_overflow equal to false, success at here just means putting the msg into tcp::socket's send buffer successfully
 //if can_overflow equal to false and the buffer is not available, will wait until it becomes available
 #define TCP_SAFE_SEND_MSG(FUNNAME, SEND_FUNNAME) \
@@ -431,14 +427,6 @@ bool FUNNAME(const asio::ip::udp::endpoint& peer_addr, const char* const pstr[],
 		return this->do_direct_send_msg(std::move(msg)); \
 	} \
 	return false; \
-} \
-UDP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
-
-#define UDP_POST_MSG(FUNNAME, NATIVE) \
-bool FUNNAME(const asio::ip::udp::endpoint& peer_addr, const char* const pstr[], const size_t len[], size_t num, bool can_overflow = false) \
-{ \
-	in_msg_type msg(peer_addr, this->packer_->pack_msg(pstr, len, num, NATIVE)); \
-	return this->direct_post_msg(std::move(msg), can_overflow); \
 } \
 UDP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
 
