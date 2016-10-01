@@ -363,7 +363,7 @@ int main(int argc, const char* argv[])
 
 				client.clear_status();
 				total_msg_bytes *= msg_len;
-				ascs_cpu_timer begin_time;
+				cpu_timer begin_time;
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 				if (0 == model)

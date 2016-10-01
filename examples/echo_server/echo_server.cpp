@@ -5,7 +5,7 @@
 #define ASCS_SERVER_PORT		9527
 #define ASCS_ASYNC_ACCEPT_NUM	5
 #define ASCS_REUSE_OBJECT //use objects pool
-//#define ST_ASIO_FREE_OBJECT_INTERVAL	60 //it's useless if ST_ASIO_REUSE_OBJECT macro been defined
+//#define ASCS_FREE_OBJECT_INTERVAL	60 //it's useless if ST_ASIO_REUSE_OBJECT macro been defined
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER //force to use the msg recv buffer
 #define ASCS_ENHANCED_STABILITY
 //#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency.

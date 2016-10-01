@@ -145,8 +145,7 @@ protected:
 	{
 		ti.timer->expires_from_now(milliseconds(ti.milliseconds));
 		//return true from call_back to continue the timer, or the timer will stop
-		ti.timer->async_wait(
-			make_handler_error([this, &ti](const auto& ec) {if (!ec && ti.call_back(ti.id) && timer::timer_info::TIMER_OK == ti.status) this->start_timer(ti);}));
+		ti.timer->async_wait(make_handler_error([this, &ti](const auto& ec) {if (!ec && ti.call_back(ti.id) && timer_info::TIMER_OK == ti.status) this->start_timer(ti);}));
 	}
 
 	void stop_timer(timer_cinfo& ti)

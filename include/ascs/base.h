@@ -149,12 +149,12 @@ public:
 
 #if !defined(__clang__) && defined(__GNUC__) &&  __GNUC__ < 5
 //a substitute of std::list (gcc before 5.1), it's size() function has O(1) complexity
-//BTW, naming rule for parameters is not mine, I copied them from std::list in Visual C++ 14.0
+//BTW, the naming rule is not mine, I copied them from std::list in Visual C++ 14.0
 template<typename _Ty, typename _Alloc = std::allocator<_Ty>>
-class std_list
+class list
 {
 public:
-	typedef std_list<_Ty, _Alloc> _Myt;
+	typedef list<_Ty, _Alloc> _Myt;
 	typedef std::list<_Ty, _Alloc> _Mybase;
 
 	typedef typename _Mybase::size_type size_type;
@@ -167,7 +167,7 @@ public:
 	typedef typename _Mybase::reverse_iterator reverse_iterator;
 	typedef typename _Mybase::const_reverse_iterator const_reverse_iterator;
 
-	std_list() : s(0) {}
+	list() : s(0) {}
 
 	bool empty() const {return 0 == s;}
 	size_type size() const {return s;}
@@ -215,7 +215,7 @@ public:
 	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First, const_iterator _Last)
 	{
 		auto size = std::distance(_First, _Last);
-		//this std::distance invocation is the penalty for making complexity of std_list::size() constant.
+		//this std::distance invocation is the penalty for making complexity of size() constant.
 		s += size;
 		_Right.s -= size;
 
@@ -226,7 +226,6 @@ private:
 	size_type s;
 	_Mybase impl;
 };
-template<typename T, typename _Alloc = std::allocator<T>> using list = std_list<T, _Alloc>;
 #else
 template<typename T, typename _Alloc = std::allocator<T>> using list = std::list<T, _Alloc>;
 #endif

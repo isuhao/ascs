@@ -71,10 +71,10 @@ protected:
 	size_t len, buff_len;
 };
 
-class ascs_cpu_timer //a substitute for boost::timer::cpu_timer
+class cpu_timer //a substitute of boost::timer::cpu_timer
 {
 public:
-	ascs_cpu_timer() {restart();}
+	cpu_timer() {restart();}
 
 	void restart() {started = false; elapsed_seconds = .0f; start();}
 	void start() {if (started) return; started = true; start_time = std::chrono::system_clock::now();}

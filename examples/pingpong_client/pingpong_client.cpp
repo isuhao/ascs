@@ -23,7 +23,7 @@ using namespace ascs::ext::tcp;
 #define QUIT_COMMAND	"quit"
 #define LIST_STATUS		"status"
 
-ascs_cpu_timer begin_time;
+cpu_timer begin_time;
 std::atomic_ushort completed_session_num;
 
 //about congestion control
