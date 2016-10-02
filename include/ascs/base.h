@@ -230,6 +230,96 @@ private:
 template<typename T, typename _Alloc = std::allocator<T>> using list = std::list<T, _Alloc>;
 #endif
 
+template<typename T>
+class message_queue
+{
+public:
+	typedef std::lock_guard<message_queue<T>> lock_guard;
+
+public:
+	message_queue() {}
+	message_queue(size_t) {}
+
+	size_t size() const {return queue.size();}
+	bool empty() const {return queue.empty();}
+	void clear() {lock_guard lock(*this); queue.clear();}
+
+	//it's not thread safe for 'other', please note.
+	//if you want this operation to be thread safe for 'other', you should (both 'dest' and 'other' are a message_queue):
+	//other.lock();
+	//dest.swap(other);
+	//other.unlock();
+	//or
+	//std::lock_guard<message_queue<T>> lock(other);
+	//dest.swap(other);
+	void swap(message_queue<T>& other) {lock_guard lock(*this); queue.swap(other.queue);}
+
+	//same limitation as 'swap'
+	size_t move_items_in(message_queue<T>& other, size_t max_size = ASCS_MAX_MSG_NUM)
+	{
+		lock_guard lock(*this);
+		auto cur_size = size();
+		if (cur_size >= max_size)
+			return 0;
+
+		size_t num = 0;
+		while (cur_size < max_size)
+		{
+			T item;
+			if (!other.try_dequeue_(item)) //not thread safe for 'other', because we called 'try_dequeue_'
+				break;
+
+			enqueue_(std::move(item));
+			++cur_size;
+			++num;
+		}
+
+		return num;
+	}
+
+	//it's no thread safe for 'other', please note.
+	size_t move_items_in(list<T>& other, size_t max_size = ASCS_MAX_MSG_NUM)
+	{
+		lock_guard lock(*this);
+		auto cur_size = size();
+		if (cur_size >= max_size)
+			return 0;
+
+		size_t num = 0;
+		while (cur_size < max_size && !other.empty())
+		{
+			enqueue_(std::move(other.front()));
+			other.pop_front();
+			++cur_size;
+			++num;
+		}
+
+		return num;
+	}
+
+	//lockable
+	void lock() {mutex.lock();}
+	void unlock() {mutex.unlock();}
+
+	bool idle() {std::unique_lock<std::shared_mutex> lock(mutex, std::try_to_lock); return lock.owns_lock();}
+
+	bool enqueue(const T& item) {lock_guard lock(*this); return enqueue_(item);}
+	bool enqueue(T&& item) {lock_guard lock(*this); return enqueue_(std::move(item));}
+	bool try_enqueue(const T& item) {lock_guard lock(*this); return try_enqueue_(item);}
+	bool try_enqueue(T&& item) {lock_guard lock(*this); return try_enqueue_(std::move(item));}
+	bool try_dequeue(T& item) {lock_guard lock(*this); return try_dequeue_(item);}
+
+	bool enqueue_(const T& item) {queue.push_back(item); return true;}
+	bool enqueue_(T&& item) {queue.push_back(std::move(item)); return true;}
+	bool try_enqueue_(const T& item) {return enqueue_(item);}
+	bool try_enqueue_(T&& item) {return enqueue_(std::move(item));}
+	bool try_dequeue_(T& item) {if (queue.empty()) return false; item.swap(queue.front()); queue.pop_front(); return true;}
+
+private:
+	list<T> queue;
+	std::shared_mutex mutex;
+};
+
 //unpacker concept
 namespace tcp
 {
@@ -356,32 +446,9 @@ template<typename _Predicate> void NAME(const _Predicate& __pred) const {for (au
 	std::this_thread::sleep_for(std::chrono::milliseconds(50)); \
 }
 
-#define GET_PENDING_MSG_NUM(FUNNAME, CAN, MUTEX) size_t FUNNAME() {std::shared_lock<std::shared_mutex> lock(MUTEX); return CAN.size();}
-#define PEEK_FIRST_PENDING_MSG(FUNNAME, CAN, MUTEX, MSGTYPE) \
-void FUNNAME(MSGTYPE& msg) \
-{ \
-	msg.clear(); \
-	std::shared_lock<std::shared_mutex> lock(MUTEX); \
-	if (!CAN.empty()) \
-		msg = CAN.front(); \
-}
-#define POP_FIRST_PENDING_MSG(FUNNAME, CAN, MUTEX, MSGTYPE) \
-void FUNNAME(MSGTYPE& msg) \
-{ \
-	msg.clear(); \
-	std::unique_lock<std::shared_mutex> lock(MUTEX); \
-	if (!CAN.empty()) \
-	{ \
-		msg.swap(CAN.front()); \
-		CAN.pop_front(); \
-	} \
-}
-#define POP_ALL_PENDING_MSG(FUNNAME, CAN, MUTEX, CANTYPE) \
-void FUNNAME(CANTYPE& msg_list) \
-{ \
-	std::unique_lock<std::shared_mutex> lock(MUTEX); \
-	msg_list.splice(msg_list.end(), CAN); \
-}
+#define GET_PENDING_MSG_NUM(FUNNAME, CAN) size_t FUNNAME() const {return CAN.size();}
+#define POP_FIRST_PENDING_MSG(FUNNAME, CAN, MSGTYPE) void FUNNAME(MSGTYPE& msg) {msg.clear(); CAN.try_dequeue(msg);}
+#define POP_ALL_PENDING_MSG(FUNNAME, CAN, CANTYPE) void FUNNAME(CANTYPE& msg_queue) {msg_queue.clear(); CAN.swap(msg_queue);}
 
 ///////////////////////////////////////////////////
 //TCP msg sending interface
@@ -391,10 +458,7 @@ TYPE FUNNAME(const std::string& str, bool can_overflow = false) {return FUNNAME(
 
 #define TCP_SEND_MSG(FUNNAME, NATIVE) \
 bool FUNNAME(const char* const pstr[], const size_t len[], size_t num, bool can_overflow = false) \
-{ \
-	std::unique_lock<std::shared_mutex> lock(this->send_msg_buffer_mutex); \
-	return (can_overflow || this->send_msg_buffer.size() < ASCS_MAX_MSG_NUM) ? this->do_direct_send_msg(this->packer_->pack_msg(pstr, len, num, NATIVE)) : false; \
-} \
+	{return can_overflow || this->is_send_buffer_available() ? this->do_direct_send_msg(this->packer_->pack_msg(pstr, len, num, NATIVE)) : false;} \
 TCP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
 
 //guarantee send msg successfully even if can_overflow equal to false, success at here just means putting the msg into tcp::socket's send buffer successfully
@@ -419,8 +483,7 @@ TYPE FUNNAME(const asio::ip::udp::endpoint& peer_addr, const std::string& str, b
 #define UDP_SEND_MSG(FUNNAME, NATIVE) \
 bool FUNNAME(const asio::ip::udp::endpoint& peer_addr, const char* const pstr[], const size_t len[], size_t num, bool can_overflow = false) \
 { \
-	std::unique_lock<std::shared_mutex> lock(this->send_msg_buffer_mutex); \
-	if (can_overflow || this->send_msg_buffer.size() < ASCS_MAX_MSG_NUM) \
+	if (can_overflow || this->is_send_buffer_available()) \
 	{ \
 		in_msg_type msg(peer_addr, this->packer_->pack_msg(pstr, len, num, NATIVE)); \
 		return this->do_direct_send_msg(std::move(msg)); \

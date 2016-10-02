@@ -115,25 +115,24 @@ protected:
 		return false;
 	}
 
-	//must mutex send_msg_buffer before invoke this function
+	//ascs::socket will guarantee not call this function in more than one thread concurrently.
 	virtual bool do_send_msg()
 	{
-		if (!is_send_allowed() || this->stopped())
-			this->sending = false;
-		else if (!this->sending && !this->send_msg_buffer.empty())
+		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
 		{
-			this->sending = true;
-			this->stat.send_delay_sum += super::statistic::now() - this->send_msg_buffer.front().begin_time;
-			this->send_msg_buffer.front().swap(last_send_msg);
-			this->send_msg_buffer.pop_front();
+			typename super::in_msg msg;
+			this->send_msg_buffer.try_dequeue(msg);
+			this->stat.send_delay_sum += super::statistic::now() - msg.begin_time;
 
 			last_send_msg.restart();
 			std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
 			this->next_layer().async_send_to(asio::buffer(last_send_msg.data(), last_send_msg.size()), last_send_msg.peer_addr,
 				this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+
+			return true;
 		}
 
-		return this->sending;
+		return false;
 	}
 
 	virtual void do_recv_msg()
@@ -209,28 +208,17 @@ private:
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 			this->on_msg_send(last_send_msg);
 #endif
+#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
+			if (this->send_msg_buffer.empty())
+				this->on_all_msg_send(last_send_msg);
+#endif
 		}
 		else
 			this->on_send_error(ec);
-
-#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
-		typename super::in_msg msg;
-		msg.swap(last_send_msg);
-#endif
 		last_send_msg.clear();
 
-		std::unique_lock<std::shared_mutex> lock(this->send_msg_buffer_mutex);
 		this->sending = false;
-
-		//send msg sequentially, that means second send only after first send success
-		//under windows, send a msg to addr_any may cause sending errors, please note
-		//for UDP in ascs, sending error will not stop the following sending.
-#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
-		if (!do_send_msg())
-			this->on_all_msg_send(msg);
-#else
-		do_send_msg();
-#endif
+		this->send_msg(); //send msg sequentially, that means second send only after first send success
 	}
 
 protected:

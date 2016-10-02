@@ -101,38 +101,45 @@ protected:
 		return !sync;
 	}
 
-	//must mutex send_msg_buffer before invoke this function
+	//ascs::socket will guarantee not call this function in more than one thread concurrently.
 	virtual bool do_send_msg()
 	{
-		if (!is_send_allowed() || this->stopped())
-			this->sending = false;
-		else if (!this->sending && !this->send_msg_buffer.empty())
+		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
 		{
-			this->sending = true;
-#ifdef ASCS_WANT_MSG_SEND_NOTIFY
-			const size_t max_send_size = 0;
-#else
-			const size_t max_send_size = asio::detail::default_max_transfer_size;
-#endif
-			size_t size = 0;
-			auto end_time = super::statistic::now();
 			std::vector<asio::const_buffer> bufs;
-			for (auto iter = std::begin(this->send_msg_buffer); last_send_msg.empty();)
 			{
-				size += iter->size();
-				bufs.push_back(asio::buffer(iter->data(), iter->size()));
-				this->stat.send_delay_sum += end_time - iter->begin_time;
-				++iter;
-				if (size >= max_send_size || iter == std::end(this->send_msg_buffer))
-					last_send_msg.splice(std::end(last_send_msg), this->send_msg_buffer, std::begin(this->send_msg_buffer), iter);
+#ifdef ASCS_WANT_MSG_SEND_NOTIFY
+				const size_t max_send_size = 0;
+#else
+				const size_t max_send_size = asio::detail::default_max_transfer_size;
+#endif
+				size_t size = 0;
+				typename super::in_msg msg;
+				auto end_time = super::statistic::now();
+
+				typename message_queue<in_msg>::lock_guard lock(this->send_msg_buffer);
+				while (this->send_msg_buffer.try_dequeue_(msg))
+				{
+					bufs.push_back(asio::buffer(msg.data(), msg.size()));
+					this->stat.send_delay_sum += end_time - msg.begin_time;
+
+					last_send_msg.resize(last_send_msg.size() + 1);
+					last_send_msg.back().swap(msg);
+
+					size += last_send_msg.back().size();
+					if (size >= max_send_size)
+						break;
+				}
 			}
 
 			last_send_msg.front().restart();
 			asio::async_write(this->next_layer(), bufs,
 				this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+
+			return true;
 		}
 
-		return this->sending;
+		return false;
 	}
 
 	virtual void do_recv_msg()
@@ -217,31 +224,22 @@ private:
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 			this->on_msg_send(last_send_msg.front());
 #endif
+#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
+			if (this->send_msg_buffer.empty())
+				this->on_all_msg_send(last_send_msg.back());
+#endif
 		}
 		else
 			this->on_send_error(ec);
-
-#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
-		typename super::in_msg msg;
-		msg.swap(last_send_msg.back());
-#endif
 		last_send_msg.clear();
 
-		std::unique_lock<std::shared_mutex> lock(this->send_msg_buffer_mutex);
 		this->sending = false;
-
-		//send msg sequentially, that means second send only after first send success
-#ifdef ASCS_WANT_ALL_MSG_SEND_NOTIFY
-		if (!ec && !do_send_msg())
-			this->on_all_msg_send(msg);
-#else
 		if (!ec)
-			do_send_msg();
-#endif
+			this->send_msg(); //send msg sequentially, that means second send only after first send success
 	}
 
 protected:
-	typename super::in_container_type last_send_msg;
+	list<typename super::in_msg> last_send_msg;
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
 	int shutdown_state; //2-the first step of graceful shutdown, 1-force shutdown, 0-normal state
 

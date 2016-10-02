@@ -140,8 +140,8 @@ protected:
 
 	typedef msg_with_begin_time<InMsgType> in_msg;
 	typedef msg_with_begin_time<OutMsgType> out_msg;
-	typedef list<in_msg> in_container_type;
-	typedef list<out_msg> out_container_type;
+	typedef message_queue<in_msg> in_container_type;
+	typedef message_queue<out_msg> out_container_type;
 
 	static const tid TIMER_BEGIN = timer::TIMER_END;
 	static const tid TIMER_DISPATCH_MSG = TIMER_BEGIN;
@@ -198,11 +198,7 @@ public:
 	virtual bool obsoleted()
 	{
 #ifndef ASCS_ENHANCED_STABILITY
-		if (started() || closing || this->is_async_calling())
-			return false;
-
-		std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex, std::try_to_lock);
-		return lock.owns_lock() && recv_msg_buffer.empty(); //if successfully locked, means this socket is idle
+		return started() || closing || this->is_async_calling() ? false : recv_msg_buffer.empty() && recv_msg_buffer.idle();
 #else
 		return !started() && !this->is_async_calling();
 #endif
@@ -216,16 +212,29 @@ public:
 			started_ = do_start();
 	}
 
-	bool send_msg() //return false if send buffer is empty or sending not allowed or io_service stopped
+	//return false if send buffer is empty or sending not allowed or io_service stopped
+	bool send_msg()
 	{
-		std::unique_lock<std::shared_mutex> lock(send_msg_buffer_mutex);
-		return do_send_msg();
+		if (!sending)
+		{
+			std::unique_lock<std::shared_mutex> lock(send_mutex);
+			if (!sending)
+			{
+				sending = true;
+				lock.unlock();
+
+				if (!do_send_msg())
+					sending = false;
+			}
+		}
+
+		return sending;
 	}
 
 	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
 	bool suspend_send_msg() const {return paused_sending;}
 
-	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) do_dispatch_msg(true);}
+	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) do_dispatch_msg();}
 	bool suspend_dispatch_msg() const {return paused_dispatching;}
 
 	void congestion_control(bool enable) {congestion_controlling = enable;}
@@ -246,29 +255,22 @@ public:
 
 	//don't use the packer but insert into send buffer directly
 	bool direct_send_msg(const InMsgType& msg, bool can_overflow = false) {return direct_send_msg(InMsgType(msg), can_overflow);}
-	bool direct_send_msg(InMsgType&& msg, bool can_overflow = false)
-	{
-		std::unique_lock<std::shared_mutex> lock(send_msg_buffer_mutex);
-		return can_overflow || is_send_buffer_available() ? do_direct_send_msg(std::move(msg)) : false;
-	}
+	bool direct_send_msg(InMsgType&& msg, bool can_overflow = false) {return can_overflow || is_send_buffer_available() ? do_direct_send_msg(std::move(msg)) : false;}
 
 	//how many msgs waiting for sending or dispatching
-	GET_PENDING_MSG_NUM(get_pending_send_msg_num, send_msg_buffer, send_msg_buffer_mutex)
-	GET_PENDING_MSG_NUM(get_pending_recv_msg_num, recv_msg_buffer, recv_msg_buffer_mutex)
+	GET_PENDING_MSG_NUM(get_pending_send_msg_num, send_msg_buffer)
+	GET_PENDING_MSG_NUM(get_pending_recv_msg_num, recv_msg_buffer)
 
-	PEEK_FIRST_PENDING_MSG(peek_first_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, InMsgType)
-	PEEK_FIRST_PENDING_MSG(peek_first_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, OutMsgType)
-
-	POP_FIRST_PENDING_MSG(pop_first_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, InMsgType)
-	POP_FIRST_PENDING_MSG(pop_first_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, OutMsgType)
+	POP_FIRST_PENDING_MSG(pop_first_pending_send_msg, send_msg_buffer, InMsgType)
+	POP_FIRST_PENDING_MSG(pop_first_pending_recv_msg, recv_msg_buffer, OutMsgType)
 
 	//clear all pending msgs
-	POP_ALL_PENDING_MSG(pop_all_pending_send_msg, send_msg_buffer, send_msg_buffer_mutex, in_container_type)
-	POP_ALL_PENDING_MSG(pop_all_pending_recv_msg, recv_msg_buffer, recv_msg_buffer_mutex, out_container_type)
+	POP_ALL_PENDING_MSG(pop_all_pending_send_msg, send_msg_buffer, in_container_type)
+	POP_ALL_PENDING_MSG(pop_all_pending_recv_msg, recv_msg_buffer, out_container_type)
 
 protected:
 	virtual bool do_start() = 0;
-	virtual bool do_send_msg() = 0; //must mutex send_msg_buffer before invoke this function
+	virtual bool do_send_msg() = 0; //must lock send_mutex before invoke this function
 	virtual void do_recv_msg() = 0;
 
 	virtual bool is_closable() {return true;}
@@ -350,9 +352,8 @@ protected:
 
 		if (!temp_buffer.empty())
 		{
-			std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex);
-			recv_msg_buffer.splice(std::end(recv_msg_buffer), temp_buffer);
-			do_dispatch_msg(false);
+			recv_msg_buffer.move_items_in(temp_buffer, -1);
+			do_dispatch_msg();
 		}
 
 		if (temp_msg_buffer.empty() && recv_msg_buffer.size() < ASCS_MAX_MSG_NUM)
@@ -364,57 +365,59 @@ protected:
 		}
 	}
 
-	void do_dispatch_msg(bool need_lock)
+	void do_dispatch_msg()
 	{
-		if (paused_dispatching)
+		if (paused_dispatching || dispatching)
 			return;
 
-		std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex, std::defer_lock);
-		if (need_lock) lock.lock();
+		std::unique_lock<std::shared_mutex> lock(dispatch_mutex);
+		if (dispatching)
+			return;
+		else
+			dispatching = true;
+		lock.unlock();
 
-		auto dispatch_all = false;
 		if (stopped())
-			dispatch_all = !(dispatching = false);
-		else if (!dispatching)
-		{
-			if (!started())
-				dispatch_all = true;
-			else if (!last_dispatch_msg.empty())
-			{
-				dispatching = true;
-				post([this]() {this->msg_handler();});
-			}
-			else if (!recv_msg_buffer.empty())
-			{
-				last_dispatch_msg.restart(recv_msg_buffer.front().begin_time);
-				last_dispatch_msg.swap(recv_msg_buffer.front());
-				recv_msg_buffer.pop_front();
-
-				dispatching = true;
-				post([this]() {this->msg_handler();});
-			}
-		}
-
-		if (dispatch_all)
 		{
 #ifndef ASCS_DISCARD_MSG_WHEN_LINK_DOWN
 			if (!last_dispatch_msg.empty())
+			{
 				on_msg_handle(last_dispatch_msg, true);
-			ascs::do_something_to_all(recv_msg_buffer, [this](auto& msg) {this->on_msg_handle(msg, true);});
+				last_dispatch_msg.clear();
+			}
+
+			out_msg msg;
+			{
+				typename message_queue<out_msg>::lock_guard lock(recv_msg_buffer);
+				while (recv_msg_buffer.try_dequeue_(msg))
+					on_msg_handle(msg, true);
+			}
 #endif
-			last_dispatch_msg.clear();
-			recv_msg_buffer.clear();
+			dispatching = false;
 		}
+		else if (!last_dispatch_msg.empty())
+			post([this]() {this->msg_handler();});
+		else if (!recv_msg_buffer.empty())
+		{
+			out_msg msg;
+			recv_msg_buffer.try_dequeue(msg);
+			last_dispatch_msg.restart(msg.begin_time);
+			last_dispatch_msg.swap(msg);
+
+			post([this]() {this->msg_handler();});
+		}
+		else
+			dispatching = false;
 	}
 
-	//must mutex send_msg_buffer before invoke this function
 	bool do_direct_send_msg(InMsgType&& msg)
 	{
 		if (!msg.empty())
 		{
-			send_msg_buffer.resize(send_msg_buffer.size() + 1);
-			send_msg_buffer.back().swap(msg);
-			do_send_msg();
+			in_msg unused;
+			unused.swap(msg);
+			send_msg_buffer.enqueue(std::move(unused));
+			send_msg();
 		}
 
 		return true;
@@ -430,7 +433,7 @@ private:
 			dispatch_msg();
 			break;
 		case TIMER_RE_DISPATCH_MSG: //re-dispatch
-			do_dispatch_msg(true);
+			do_dispatch_msg();
 			break;
 		case TIMER_DELAY_CLOSE:
 			if (!this->is_last_async_call())
@@ -460,17 +463,18 @@ private:
 		bool re = on_msg_handle(last_dispatch_msg, false); //must before next msg dispatching to keep sequence
 		auto end_time = statistic::now();
 		stat.handle_time_2_sum += end_time - begin_time;
-		std::unique_lock<std::shared_mutex> lock(recv_msg_buffer_mutex);
-		dispatching = false;
+
 		if (!re) //dispatch failed, re-dispatch
 		{
 			last_dispatch_msg.restart(end_time);
+			dispatching = false;
 			set_timer(TIMER_RE_DISPATCH_MSG, 50, [this](auto id)->bool {return this->timer_handler(id);});
 		}
 		else //dispatch msg sequentially, which means second dispatching only after first dispatching success
 		{
 			last_dispatch_msg.clear();
-			do_dispatch_msg(false);
+			dispatching = false;
+			do_dispatch_msg();
 		}
 	}
 
@@ -482,16 +486,17 @@ protected:
 	std::shared_ptr<i_packer<typename Packer::msg_type>> packer_;
 
 	in_container_type send_msg_buffer;
-	out_container_type recv_msg_buffer, temp_msg_buffer;
+	out_container_type recv_msg_buffer;
+	list<out_msg> temp_msg_buffer;
 	//socket will invoke dispatch_msg() when got some msgs. if these msgs can't be pushed into recv_msg_buffer because of:
 	// 1. msg dispatching suspended;
 	// 2. post_msg_buffer not empty.
 	//socket will delay 50 milliseconds(non-blocking) to invoke dispatch_msg() again, and now, as you known, temp_msg_buffer is used to hold these msgs temporarily.
-	std::shared_mutex send_msg_buffer_mutex;
-	std::shared_mutex recv_msg_buffer_mutex;
 
 	bool sending, paused_sending;
+	std::shared_mutex send_mutex;
 	bool dispatching, paused_dispatching, congestion_controlling;
+	std::shared_mutex dispatch_mutex;
 #ifndef ASCS_ENHANCED_STABILITY
 	bool closing;
 #endif
