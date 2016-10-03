@@ -117,7 +117,7 @@ protected:
 				typename super::in_msg msg;
 				auto end_time = super::statistic::now();
 
-				typename message_queue<in_msg>::lock_guard lock(this->send_msg_buffer);
+				typename message_queue<typename super::in_msg>::lock_guard lock(this->send_msg_buffer);
 				while (this->send_msg_buffer.try_dequeue_(msg))
 				{
 					bufs.push_back(asio::buffer(msg.data(), msg.size()));
@@ -235,7 +235,7 @@ private:
 
 		this->sending = false;
 		if (!ec)
-			this->send_msg(); //send msg sequentially, that means second send only after first send success
+			this->send_msg(); //send msg sequentially, which means second sending only after first sending success
 	}
 
 protected:

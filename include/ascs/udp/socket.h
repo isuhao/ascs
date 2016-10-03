@@ -218,7 +218,10 @@ private:
 		last_send_msg.clear();
 
 		this->sending = false;
-		this->send_msg(); //send msg sequentially, that means second send only after first send success
+		//send msg sequentially, which means second sending only after first sending success
+		//in windows, sending a msg to addr_any may cause errors, please note
+		//for UDP, sending error will not stop subsequence sendings.
+		this->send_msg();
 	}
 
 protected:
