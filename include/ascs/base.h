@@ -168,6 +168,8 @@ public:
 	typedef typename _Mybase::const_reverse_iterator const_reverse_iterator;
 
 	list() : s(0) {}
+	list(list&& other) : s(0) {swap(other);}
+	void swap(list& other) {impl.swap(other.impl); std::swap(s, other.s);}
 
 	bool empty() const {return 0 == s;}
 	size_type size() const {return s;}
@@ -212,6 +214,7 @@ public:
 	const_reverse_iterator rend() const {return impl.rend();}
 
 	void splice(const_iterator _Where, _Myt& _Right) {s += _Right.size(); _Right.s = 0; impl.splice(_Where, _Right.impl);}
+	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First) {++s; --_Right.s; impl.splice(_Where, _Right.impl, _First);}
 	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First, const_iterator _Last)
 	{
 		auto size = std::distance(_First, _Last);
