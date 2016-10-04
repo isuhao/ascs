@@ -168,7 +168,6 @@ public:
 	typedef typename _Mybase::const_reverse_iterator const_reverse_iterator;
 
 	list() : s(0) {}
-	list(list&& other) : s(0) {swap(other);}
 	void swap(list& other) {impl.swap(other.impl); std::swap(s, other.s);}
 
 	bool empty() const {return 0 == s;}

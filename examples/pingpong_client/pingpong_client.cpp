@@ -38,6 +38,7 @@ std::atomic_ushort completed_session_num;
 //    but must not in service threads, please note.
 //
 //2. for sender, if responses are available (like pingpong test), send msgs in on_msg()/on_msg_handle().
+//    this will reduce IO throughput because, SOCKET's sliding window is not fully used, pleae note.
 //
 //pingpong_client will choose method #1 if defined ST_ASIO_WANT_MSG_SEND_NOTIFY, otherwise #2
 //BTW, if pingpong_client chose method #2, then pingpong_server can work properly without any congestion control,
@@ -68,7 +69,7 @@ protected:
 	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {handle_msg(msg); return true;}
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
-	//congestion control, method #1, need peer's cooperation.
+	//congestion control, method #1, the peer needs its own congestion control too.
 	virtual void on_msg_send(in_msg_type& msg)
 	{
 		send_bytes += msg.size();
@@ -87,7 +88,7 @@ private:
 	}
 #else
 private:
-	//congestion control, method #2, doesn't need peer's cooperation.
+	//congestion control, method #2, the peer totally doesn't have to consider congestion control.
 	void handle_msg(out_msg_type& msg)
 	{
 		if (0 == total_bytes)

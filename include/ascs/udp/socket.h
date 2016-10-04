@@ -95,7 +95,7 @@ public:
 	UDP_SEND_MSG(send_msg, false) //use the packer with native = false to pack the msgs
 	UDP_SEND_MSG(send_native_msg, true) //use the packer with native = true to pack the msgs
 	//guarantee send msg successfully even if can_overflow equal to false
-	//success at here just means put the msg into udp::socket's send buffer
+	//success at here just means put the msg into udp::socket_base's send buffer
 	UDP_SAFE_SEND_MSG(safe_send_msg, send_msg)
 	UDP_SAFE_SEND_MSG(safe_send_native_msg, send_native_msg)
 	//msg sending interface
@@ -116,20 +116,23 @@ protected:
 	}
 
 	//ascs::socket will guarantee not call this function in more than one thread concurrently.
+	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
 		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
 		{
 			typename super::in_msg msg;
-			this->send_msg_buffer.try_dequeue(msg);
-			this->stat.send_delay_sum += super::statistic::now() - msg.begin_time;
+			if (this->send_msg_buffer.try_dequeue(msg))
+			{
+				this->stat.send_delay_sum += super::statistic::now() - msg.begin_time;
 
-			last_send_msg.restart();
-			std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
-			this->next_layer().async_send_to(asio::buffer(last_send_msg.data(), last_send_msg.size()), last_send_msg.peer_addr,
-				this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+				last_send_msg.restart();
+				std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
+				this->next_layer().async_send_to(asio::buffer(last_send_msg.data(), last_send_msg.size()), last_send_msg.peer_addr,
+					this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
 
-			return true;
+				return true;
+			}
 		}
 
 		return false;
@@ -186,7 +189,7 @@ private:
 			this->stat.recv_byte_sum += bytes_transferred;
 			this->temp_msg_buffer.resize(this->temp_msg_buffer.size() + 1);
 			this->temp_msg_buffer.back().swap(peer_addr, unpacker_->parse_msg(bytes_transferred));
-			this->dispatch_msg();
+			this->handle_msg();
 		}
 #ifdef _MSC_VER
 		else if (asio::error::connection_refused == ec || asio::error::connection_reset == ec)
@@ -217,11 +220,14 @@ private:
 			this->on_send_error(ec);
 		last_send_msg.clear();
 
-		this->sending = false;
 		//send msg sequentially, which means second sending only after first sending success
-		//in windows, sending a msg to addr_any may cause errors, please note
+		//on windows, sending a msg to addr_any may cause errors, please note
 		//for UDP, sending error will not stop subsequence sendings.
-		this->send_msg();
+		if (!do_send_msg())
+		{
+			this->sending = false;
+			this->send_msg(); //just make sure no pending msgs
+		}
 	}
 
 protected:

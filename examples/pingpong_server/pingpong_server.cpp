@@ -34,6 +34,7 @@ using namespace ascs::ext::tcp;
 //    but must not in service threads, please note.
 //
 //2. for sender, if responses are available (like pingpong test), send msgs in on_msg()/on_msg_handle().
+//    this will reduce IO throughput, because SOCKET's sliding window is not fully used, pleae note.
 //
 //pingpong_server chose method #1
 //BTW, if pingpong_client chose method #2, then pingpong_server can work properly without any congestion control,
@@ -47,19 +48,16 @@ public:
 
 protected:
 	//msg handling: send the original msg back(echo server)
-	//congestion control, method #1, need peer's cooperation.
+	//congestion control, method #1, the peer needs its own congestion control too.
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 	//this virtual function doesn't exists if ST_ASIO_FORCE_TO_USE_MSG_RECV_BUFFER been defined
 	virtual bool on_msg(out_msg_type& msg)
 	{
 		auto re = direct_send_msg(std::move(msg));
 		if (!re)
-		{
+			congestion_control(true);
 			//cannot handle (send it back) this msg timely, begin congestion control
-			//'msg' will be put into receiving buffer, and be dispatched in on_msg_handle() in the future
-			congestion_control(true); //very important
-			unified_out::warning_out("open congestion control.");
-		}
+			//'msg' will be put into receiving buffer, and be dispatched via on_msg_handle() in the future
 
 		return re;
 	}
@@ -68,12 +66,9 @@ protected:
 	{
 		auto re = direct_send_msg(std::move(msg));
 		if (re)
-		{
+			congestion_control(false);
 			//successfully handled the only one msg in receiving buffer, end congestion control
 			//subsequent msgs will be dispatched via on_msg() again.
-			congestion_control(false); //very important
-			unified_out::warning_out("close congestion control.");
-		}
 
 		return re;
 	}

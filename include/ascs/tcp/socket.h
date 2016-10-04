@@ -102,6 +102,7 @@ protected:
 	}
 
 	//ascs::socket will guarantee not call this function in more than one thread concurrently.
+	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
 		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
@@ -117,26 +118,26 @@ protected:
 				typename super::in_msg msg;
 				auto end_time = super::statistic::now();
 
-				typename message_queue<typename super::in_msg>::lock_guard lock(this->send_msg_buffer);
+				typename in_container_type::lock_guard lock(this->send_msg_buffer);
 				while (this->send_msg_buffer.try_dequeue_(msg))
 				{
 					bufs.push_back(asio::buffer(msg.data(), msg.size()));
 					this->stat.send_delay_sum += end_time - msg.begin_time;
-
-					last_send_msg.resize(last_send_msg.size() + 1);
-					last_send_msg.back().swap(msg);
-
-					size += last_send_msg.back().size();
+					size += msg.size();
+					last_send_msg.push_back(std::move(msg));
 					if (size >= max_send_size)
 						break;
 				}
 			}
 
-			last_send_msg.front().restart();
-			asio::async_write(this->next_layer(), bufs,
-				this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+			if (!bufs.empty())
+			{
+				last_send_msg.front().restart();
+				asio::async_write(this->next_layer(), bufs,
+					this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
 
-			return true;
+				return true;
+			}
 		}
 
 		return false;
@@ -201,7 +202,7 @@ private:
 					(++op_iter).base()->swap(*iter.base());
 				}
 			}
-			this->dispatch_msg();
+			this->handle_msg();
 
 			if (!unpack_ok)
 			{
@@ -233,9 +234,11 @@ private:
 			this->on_send_error(ec);
 		last_send_msg.clear();
 
-		this->sending = false;
-		if (!ec)
-			this->send_msg(); //send msg sequentially, which means second sending only after first sending success
+		if (ec || !do_send_msg()) //send msg sequentially, which means second sending only after first sending success
+		{
+			this->sending = false;
+			this->send_msg(); //just make sure no pending msgs
+		}
 	}
 
 protected:
