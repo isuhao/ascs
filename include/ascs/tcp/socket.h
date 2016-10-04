@@ -118,7 +118,7 @@ protected:
 				typename super::in_msg msg;
 				auto end_time = super::statistic::now();
 
-				typename in_container_type::lock_guard lock(this->send_msg_buffer);
+				typename super::in_container_type::lock_guard lock(this->send_msg_buffer);
 				while (this->send_msg_buffer.try_dequeue_(msg))
 				{
 					bufs.push_back(asio::buffer(msg.data(), msg.size()));
