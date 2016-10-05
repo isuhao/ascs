@@ -299,11 +299,11 @@ public:
 	bool try_enqueue(T&& item) {lock_guard lock(*this); return try_enqueue_(std::move(item));}
 	bool try_dequeue(T& item) {lock_guard lock(*this); return try_dequeue_(item);}
 
-	bool enqueue_(const T& item) {push_back(item); return true;}
-	bool enqueue_(T&& item) {push_back(std::move(item)); return true;}
+	bool enqueue_(const T& item) {this->push_back(item); return true;}
+	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
 	bool try_enqueue_(const T& item) {return enqueue_(item);}
 	bool try_enqueue_(T&& item) {return enqueue_(std::move(item));}
-	bool try_dequeue_(T& item) {if (empty()) return false; item.swap(front()); pop_front(); return true;}
+	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
 
 private:
 	std::shared_mutex mutex;
