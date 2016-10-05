@@ -242,19 +242,19 @@ template<typename T>
 class message_queue_ : public moodycamel::ConcurrentQueue<T>
 {
 public:
+	typedef moodycamel::ConcurrentQueue<T> super;
 	typedef message_queue_<T> me;
 	typedef std::lock_guard<me> lock_guard;
 
-public:
 	message_queue_() {}
-	message_queue_(size_t size) : moodycamel::ConcurrentQueue<T>(size) {}
+	message_queue_(size_t size) : super(size) {}
 
-	size_t size() const {return size_approx();}
+	size_t size() const {return super::size_approx();}
 	bool empty() const {return 0 == size();}
 
-	void clear() {std::unique_lock<std::shared_mutex> lock(mutex); moodycamel::ConcurrentQueue<T>(std::move(*this));}
+	void clear() {std::unique_lock<std::shared_mutex> lock(mutex); super(std::move(*this));}
 	//it's not thread safe for 'other', please note.
-	void swap(me& other) {std::unique_lock<std::shared_mutex> lock(mutex); moodycamel::ConcurrentQueue<T>::swap(other);}
+	void swap(me& other) {std::unique_lock<std::shared_mutex> lock(mutex); super::swap(other);}
 
 	//lockable
 	void lock() const {}
@@ -262,11 +262,11 @@ public:
 
 	bool idle() const {return true;}
 
-	bool enqueue_(const T& item) {return enqueue(item);}
-	bool enqueue_(T&& item) {return enqueue(std::move(item));}
-	bool try_enqueue_(const T& item) {return try_enqueue(item);}
-	bool try_enqueue_(T&& item) {return try_enqueue(std::move(item));}
-	bool try_dequeue_(T& item) {return try_dequeue(item);}
+	bool enqueue_(const T& item) {return this->enqueue(item);}
+	bool enqueue_(T&& item) {return this->enqueue(std::move(item));}
+	bool try_enqueue_(const T& item) {return this->try_enqueue(item);}
+	bool try_enqueue_(T&& item) {return this->try_enqueue(std::move(item));}
+	bool try_dequeue_(T& item) {return this->try_dequeue(item);}
 
 private:
 	std::shared_mutex mutex;
@@ -276,16 +276,16 @@ template<typename T>
 class message_queue_ : public list<T>
 {
 public:
+	typedef list<T> super;
 	typedef message_queue_<T> me;
 	typedef std::lock_guard<me> lock_guard;
 
-public:
 	message_queue_() {}
 	message_queue_(size_t) {}
 
-	void clear() {lock_guard lock(*this); list<T>::clear();}
+	void clear() {lock_guard lock(*this); super::clear();}
 	//it's not thread safe for 'other', please note.
-	void swap(me& other) {lock_guard lock(*this); list<T>::swap(other);}
+	void swap(me& other) {lock_guard lock(*this); super::swap(other);}
 
 	//lockable
 	void lock() {mutex.lock();}
@@ -315,14 +315,16 @@ template<typename T>
 class message_queue : public message_queue_<T>
 {
 public:
+	typedef message_queue_<T> super;
+
 	message_queue() {}
-	message_queue(size_t size) : message_queue_<T>(size) {}
+	message_queue(size_t size) : super(size) {}
 
 	//it's not thread safe for 'other', please note.
-	size_t move_items_in(me& other, size_t max_size = ASCS_MAX_MSG_NUM)
+	size_t move_items_in(typename super::me& other, size_t max_size = ASCS_MAX_MSG_NUM)
 	{
-		lock_guard lock(*this);
-		auto cur_size = size();
+		typename super::lock_guard lock(*this);
+		auto cur_size = this->size();
 		if (cur_size >= max_size)
 			return 0;
 
@@ -333,7 +335,7 @@ public:
 			if (!other.try_dequeue_(item)) //not thread safe for 'other', because we called 'try_dequeue_'
 				break;
 
-			enqueue_(std::move(item));
+			this->enqueue_(std::move(item));
 			++cur_size;
 			++num;
 		}
@@ -344,15 +346,15 @@ public:
 	//it's no thread safe for 'other', please note.
 	size_t move_items_in(list<T>& other, size_t max_size = ASCS_MAX_MSG_NUM)
 	{
-		lock_guard lock(*this);
-		auto cur_size = size();
+		typename super::lock_guard lock(*this);
+		auto cur_size = this->size();
 		if (cur_size >= max_size)
 			return 0;
 
 		size_t num = 0;
 		while (cur_size < max_size && !other.empty())
 		{
-			enqueue_(std::move(other.front()));
+			this->enqueue_(std::move(other.front()));
 			other.pop_front();
 			++cur_size;
 			++num;
