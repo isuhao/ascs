@@ -2,6 +2,7 @@
 #include <iostream>
 
 //configuration
+#define ASCS_USE_CONCURRENT_QUEUE
 //#define ASCS_DEFAULT_PACKER replaceable_packer
 //#define ASCS_DEFAULT_UDP_UNPACKER replaceable_udp_unpacker
 //configuration
@@ -52,6 +53,7 @@ int main(int argc, const char* argv[])
 }
 
 //restore configuration
+#undef ASCS_USE_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_PACKER
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration

@@ -8,8 +8,9 @@
 //#define ASCS_FREE_OBJECT_INTERVAL	60 //it's useless if ST_ASIO_REUSE_OBJECT macro been defined
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER //force to use the msg recv buffer
 #define ASCS_ENHANCED_STABILITY
-//#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency.
+//#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_USE_STEADY_TIMER
+#define ASCS_USE_CONCURRENT_QUEUE
 
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0
@@ -251,7 +252,8 @@ int main(int argc, const char* argv[])
 #undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #undef ASCS_ENHANCED_STABILITY
 #undef ASCS_FULL_STATISTIC
+#undef ASCS_USE_STEADY_TIMER
+#undef ASCS_USE_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_PACKER
 #undef ASCS_DEFAULT_UNPACKER
-#undef ASCS_USE_STEADY_TIMER
 //restore configuration

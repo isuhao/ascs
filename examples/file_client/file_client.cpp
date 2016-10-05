@@ -3,6 +3,7 @@
 
 //configuration
 #define ASCS_SERVER_PORT		5050
+#define ASCS_USE_CONCURRENT_QUEUE
 #define ASCS_DEFAULT_UNPACKER replaceable_unpacker
 //configuration
 
@@ -88,5 +89,6 @@ int main(int argc, const char* argv[])
 
 //restore configuration
 #undef ASCS_SERVER_PORT
+#undef ASCS_USE_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration

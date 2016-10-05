@@ -199,6 +199,13 @@ static_assert(ASCS_ASYNC_ACCEPT_NUM > 0, "async accept number must be bigger tha
 #ifndef ASCS_HAS_STD_SHARED_MUTEX
 namespace std {typedef shared_timed_mutex shared_mutex;}
 #endif
+
+//ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
+//if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need lock .
+#ifdef ASCS_USE_CUSTOM_QUEUE
+#elif defined(ASCS_USE_CONCURRENT_QUEUE)
+#include <concurrentqueue.h>
+#endif
 //configurations
 
 #endif /* _ASCS_CONFIG_H_ */

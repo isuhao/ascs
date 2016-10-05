@@ -7,6 +7,7 @@
 #define ASCS_REUSE_OBJECT //use objects pool
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #define ASCS_MSG_BUFFER_SIZE 65536
+#define ASCS_USE_CONCURRENT_QUEUE
 #define ASCS_DEFAULT_UNPACKER stream_unpacker //non-protocol
 //configuration
 
@@ -139,7 +140,7 @@ int main(int argc, const char* argv[])
 #undef ASCS_ASYNC_ACCEPT_NUM
 #undef ASCS_REUSE_OBJECT
 #undef ASCS_FREE_OBJECT_INTERVAL
-#undef ASCS_DEFAULT_PACKER
-#undef ASCS_DEFAULT_UNPACKER
 #undef ASCS_MSG_BUFFER_SIZE
+#undef ASCS_USE_CONCURRENT_QUEUE
+#undef ASCS_DEFAULT_UNPACKER
 //restore configuration

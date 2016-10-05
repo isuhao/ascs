@@ -7,7 +7,8 @@
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER //force to use the msg recv buffer
 //#define ASCS_CLEAR_OBJECT_INTERVAL	1
 //#define ASCS_WANT_MSG_SEND_NOTIFY
-#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency.
+#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
+#define ASCS_USE_CONCURRENT_QUEUE
 //configuration
 
 //use the following macro to control the type of packer and unpacker
@@ -443,6 +444,7 @@ int main(int argc, const char* argv[])
 #undef ASCS_CLEAR_OBJECT_INTERVAL
 #undef ASCS_WANT_MSG_SEND_NOTIFY
 #undef ASCS_FULL_STATISTIC
+#undef ASCS_USE_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_PACKER
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration
