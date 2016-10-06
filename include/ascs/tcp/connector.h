@@ -60,7 +60,7 @@ public:
 	void disconnect(bool reconnect = false) {force_shutdown(reconnect);}
 	void force_shutdown(bool reconnect = false)
 	{
-		if (1 != this->shutdown_state)
+		if (super::shutdown_states::FORCE != this->shutdown_state)
 		{
 			show_info("client link:", "been shut down.");
 			reconnecting = reconnect;
@@ -132,7 +132,7 @@ protected:
 		show_info("client link:", "broken/been shut down", ec);
 
 		force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(ec) >= 0);
-		this->shutdown_state = 0;
+		this->shutdown_state = super::shutdown_states::NONE;
 
 		if (reconnecting)
 			this->start();
@@ -166,7 +166,7 @@ private:
 	{
 		assert(TIMER_ASYNC_SHUTDOWN == id);
 
-		if (2 == this->shutdown_state)
+		if (super::shutdown_states::GRACEFUL == this->shutdown_state)
 		{
 			--loop_num;
 			if (loop_num > 0)

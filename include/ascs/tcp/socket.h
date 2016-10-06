@@ -33,22 +33,24 @@ protected:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()), shutdown_state(0) {}
+	enum shutdown_states {NONE, FORCE, GRACEFUL};
+
+	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE) {}
 	template<typename Arg>
-	socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()), shutdown_state(0) {}
+	socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE) {}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
 
 	//reset all, be ensure that there's no any operations performed on this tcp::socket_base when invoke it
-	void reset() {reset_state(); shutdown_state = 0; super::reset();}
+	void reset() {reset_state(); shutdown_state = shutdown_states::NONE; super::reset();}
 	void reset_state()
 	{
 		unpacker_->reset_state();
 		super::reset_state();
 	}
 
-	bool is_shutting_down() const {return 0 != shutdown_state;}
+	bool is_shutting_down() const {return shutdown_states::NONE != shutdown_state;}
 
 	//get or change the unpacker at runtime
 	//changing unpacker at runtime is not thread-safe, this operation can only be done in on_msg(), reset() or constructor, please pay special attention
@@ -70,13 +72,13 @@ public:
 	///////////////////////////////////////////////////
 
 protected:
-	void force_shutdown() {if (1 != shutdown_state) shutdown();}
+	void force_shutdown() {if (shutdown_states::FORCE != shutdown_state) shutdown();}
 	bool graceful_shutdown(bool sync) //will block until shutdown success or time out if sync equal to true
 	{
 		if (is_shutting_down())
 			return false;
 		else
-			shutdown_state = 2;
+			shutdown_state = shutdown_states::GRACEFUL;
 
 		asio::error_code ec;
 		this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_send, ec);
@@ -170,7 +172,7 @@ protected:
 	{
 		std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
 
-		shutdown_state = 1;
+		shutdown_state = shutdown_states::FORCE;
 		this->stop_all_timer();
 		this->close(); //must after stop_all_timer(), it's very important
 		this->started_ = false;
@@ -244,7 +246,7 @@ private:
 protected:
 	list<typename super::in_msg> last_send_msg;
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
-	int shutdown_state; //2-the first step of graceful shutdown, 1-force shutdown, 0-normal state
+	shutdown_states shutdown_state;
 
 	std::shared_mutex shutdown_mutex;
 };

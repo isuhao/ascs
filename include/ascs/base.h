@@ -252,11 +252,11 @@ public:
 	size_t size() const {return super::size_approx();}
 	bool empty() const {return 0 == size();}
 
-	void clear() {std::unique_lock<std::shared_mutex> lock(mutex); super(std::move(*this));}
-	//it's not thread safe for 'other', please note.
-	void swap(me& other) {std::unique_lock<std::shared_mutex> lock(mutex); super::swap(other);}
+	//not thread-safe
+	void clear() {super(std::move(*this));}
+	void swap(me& other) {super::swap(other);}
 
-	//lockable
+	//lockable, dummy
 	void lock() const {}
 	void unlock() const {}
 
@@ -267,9 +267,6 @@ public:
 	bool try_enqueue_(const T& item) {return this->try_enqueue(item);}
 	bool try_enqueue_(T&& item) {return this->try_enqueue(std::move(item));}
 	bool try_dequeue_(T& item) {return this->try_dequeue(item);}
-
-private:
-	std::shared_mutex mutex;
 };
 #else
 template<typename T>
@@ -283,9 +280,9 @@ public:
 	message_queue_() {}
 	message_queue_(size_t) {}
 
-	void clear() {lock_guard lock(*this); super::clear();}
-	//it's not thread safe for 'other', please note.
-	void swap(me& other) {lock_guard lock(*this); super::swap(other);}
+	//not thread-safe
+	void clear() {super::clear();}
+	void swap(me& other) {super::swap(other);}
 
 	//lockable
 	void lock() {mutex.lock();}

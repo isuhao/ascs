@@ -40,7 +40,7 @@ public:
 	void disconnect() {force_shutdown();}
 	void force_shutdown()
 	{
-		if (1 != this->shutdown_state)
+		if (super::shutdown_states::FORCE != this->shutdown_state)
 			show_info("server link:", "been shut down.");
 
 		super::force_shutdown();
@@ -98,7 +98,7 @@ protected:
 #else
 		server.del_client(std::dynamic_pointer_cast<timer>(this->shared_from_this()));
 #endif
-		this->shutdown_state = 0;
+		this->shutdown_state = super::shutdown_states::NONE;
 	}
 
 private:
@@ -106,7 +106,7 @@ private:
 	{
 		assert(TIMER_ASYNC_SHUTDOWN == id);
 
-		if (2 == this->shutdown_state)
+		if (super::shutdown_states::GRACEFUL == this->shutdown_state)
 		{
 			--loop_num;
 			if (loop_num > 0)
