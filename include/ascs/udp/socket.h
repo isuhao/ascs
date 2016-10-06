@@ -119,20 +119,16 @@ protected:
 	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
-		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
+		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty() && this->send_msg_buffer.try_dequeue(last_send_msg))
 		{
-			typename super::in_msg msg;
-			if (this->send_msg_buffer.try_dequeue(msg))
-			{
-				this->stat.send_delay_sum += super::statistic::now() - msg.begin_time;
+			this->stat.send_delay_sum += super::statistic::now() - last_send_msg.begin_time;
 
-				last_send_msg.restart();
-				std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
-				this->next_layer().async_send_to(asio::buffer(last_send_msg.data(), last_send_msg.size()), last_send_msg.peer_addr,
-					this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+			last_send_msg.restart();
+			std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
+			this->next_layer().async_send_to(asio::buffer(last_send_msg.data(), last_send_msg.size()), last_send_msg.peer_addr,
+				this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
 
-				return true;
-			}
+			return true;
 		}
 
 		return false;

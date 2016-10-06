@@ -127,8 +127,7 @@ public:
 		stat_duration handle_time_2_sum; //on_msg_handle consumed time, this indicate the efficiency of msg handling
 	};
 
-//protected:
-public:
+protected:
 	template<typename T>
 	struct obj_with_begin_time : public T
 	{
