@@ -64,7 +64,7 @@ public:
 		asio::error_code ec;
 		auto ep = this->lowest_layer().remote_endpoint(ec);
 		if (!ec)
-			unified_out::info_out("%s %s:%hu %s", head, ep.address().to_string().c_str(), ep.port(), tail);
+			unified_out::info_out("%s %s:%hu %s", head, ep.address().to_string().data(), ep.port(), tail);
 	}
 
 	void show_info(const char* head, const char* tail, const asio::error_code& ec) const
@@ -72,7 +72,7 @@ public:
 		asio::error_code ec2;
 		auto ep = this->lowest_layer().remote_endpoint(ec2);
 		if (!ec2)
-			unified_out::info_out("%s %s:%hu %s (%d %s)", head, ep.address().to_string().c_str(), ep.port(), tail, ec.value(), ec.message().data());
+			unified_out::info_out("%s %s:%hu %s (%d %s)", head, ep.address().to_string().data(), ep.port(), tail, ec.value(), ec.message().data());
 	}
 
 protected:
