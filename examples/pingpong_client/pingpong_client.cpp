@@ -160,6 +160,9 @@ int main(int argc, const char* argv[])
 #ifdef ASCS_CLEAR_OBJECT_INTERVAL
 	if (1 == thread_num)
 		++thread_num;
+	//add one thread will seriously impact IO throughput when doing performance benchmark, this is because the business logic is very simple (send original messages back,
+	//or just add up total message size), under this scenario, just one service thread without receiving buffer will obtain the best IO throughput.
+	//the server has such behavior too.
 #endif
 
 	for (size_t i = 0; i < link_num; ++i)
