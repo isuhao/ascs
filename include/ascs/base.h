@@ -340,7 +340,7 @@ public:
 		return num;
 	}
 
-	//it's no thread safe for 'other', please note.
+	//it's not thread safe for 'other', please note.
 	size_t move_items_in(list<T>& other, size_t max_size = ASCS_MAX_MSG_NUM)
 	{
 		typename super::lock_guard lock(*this);
