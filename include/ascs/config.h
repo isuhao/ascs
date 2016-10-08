@@ -20,12 +20,20 @@
  * Need c++14, if your compiler detected duplicated 'shared_mutex' definition, please define ASCS_HAS_STD_SHARED_MUTEX macro.
  * Need to define ASIO_STANDALONE and ASIO_HAS_STD_CHRONO macros.
  *
- * 2016.10.xx	version 1.1.0
- * Add a semi-automatic congestion control.
- * Drop original congestion control, because it cannot totally resolve dead loop.
- * Drop post_msg_buffer and corresponding functions (like post_msg()), timer (ascs::socket::TIMER_HANDLE_POST_BUFFER).
+ * 2016.10.8	version 1.1.0
+ * Support concurrent queue (https://github.com/cameron314/concurrentqueue), it's lock-free.
+ * Define ASCS_USE_CONCURRENT_QUEUE macro to use your personal message queue. 
+ * Define ASCS_USE_CONCURRE macro to use concurrent queue, otherwise ascs::list will be used as the message queue.
+ * Drop original congestion control (because it cannot totally resolve dead loop) and add a semi-automatic congestion control.
+ * Demonstrate how to use the new semi-automatic congestion control (echo_server, echo_client, pingpong_server and pingpong_client).
+ * Drop post_msg_buffer and corresponding functions (like post_msg()) and timer (ascs::socket::TIMER_HANDLE_POST_BUFFER).
+ * Optimize locks on message sending and dispatching.
+ * Add enum shutdown_states.
+ * Rename class ascs::std_list to ascs::list.
  * ascs::timer now can be used independently.
- * Add a new type ascs::st_timer::tid to represent timer ID. 
+ * Add a new type ascs::st_timer::tid to represent timer ID.
+ * Add a new packer--fixed_length_packer.
+ * Add a new class--message_queue.
  *
  */
 
@@ -201,9 +209,14 @@ namespace std {typedef shared_timed_mutex shared_mutex;}
 #endif
 
 //ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
+<<<<<<< HEAD
 //if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need lock .
 #ifdef ASCS_USE_CUSTOM_QUEUE
 #elif defined(ASCS_USE_CONCURRENT_QUEUE)
+=======
+#ifdef ASCS_USE_CUSTOM_QUEUE
+#elif defined(ASCS_USE_CONCURRENT_QUEUE) //if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need locks.
+>>>>>>> origin/1.1
 #include <concurrentqueue.h>
 #endif
 //configurations
