@@ -209,14 +209,8 @@ namespace std {typedef shared_timed_mutex shared_mutex;}
 #endif
 
 //ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
-<<<<<<< HEAD
-//if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need lock .
-#ifdef ASCS_USE_CUSTOM_QUEUE
-#elif defined(ASCS_USE_CONCURRENT_QUEUE)
-=======
 #ifdef ASCS_USE_CUSTOM_QUEUE
 #elif defined(ASCS_USE_CONCURRENT_QUEUE) //if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need locks.
->>>>>>> origin/1.1
 #include <concurrentqueue.h>
 #endif
 //configurations
