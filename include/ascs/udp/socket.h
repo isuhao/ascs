@@ -222,7 +222,8 @@ private:
 		if (!do_send_msg())
 		{
 			this->sending = false;
-			this->send_msg(); //just make sure no pending msgs
+			if (!this->send_msg_buffer.empty())
+				this->send_msg(); //just make sure no pending msgs
 		}
 	}
 

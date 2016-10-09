@@ -236,10 +236,13 @@ private:
 			this->on_send_error(ec);
 		last_send_msg.clear();
 
-		if (ec || !do_send_msg()) //send msg sequentially, which means second sending only after first sending success
+		if (ec)
+			this->sending = false;
+		else if (!do_send_msg()) //send msg sequentially, which means second sending only after first sending success
 		{
 			this->sending = false;
-			this->send_msg(); //just make sure no pending msgs
+			if (!this->send_msg_buffer.empty())
+				this->send_msg(); //just make sure no pending msgs
 		}
 	}
 
