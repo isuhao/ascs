@@ -7,7 +7,7 @@
 #define ASCS_CLEAR_OBJECT_INTERVAL	60
 #define ASCS_ENHANCED_STABILITY
 #define ASCS_WANT_MSG_SEND_NOTIFY
-#define ASCS_USE_CONCURRENT_QUEUE
+#define ASCS_HAS_CONCURRENT_QUEUE
 #define ASCS_DEFAULT_PACKER	replaceable_packer
 //configuration
 
@@ -63,6 +63,6 @@ int main(int argc, const char* argv[])
 #undef ASCS_CLEAR_OBJECT_INTERVAL
 #undef ASCS_ENHANCED_STABILITY
 #undef ASCS_WANT_MSG_SEND_NOTIFY
-#undef ASCS_USE_CONCURRENT_QUEUE
+#undef ASCS_HAS_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_PACKER
 //restore configuration

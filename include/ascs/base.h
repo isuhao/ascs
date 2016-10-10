@@ -7,7 +7,7 @@
  *		QQ: 676218192
  *		Community on QQ: 198941541
  *
- * this is a global head file
+ * interfaces, free functions, convenience and logs etc.
  */
 
 #ifndef _ASCS_BASE_H_
@@ -16,17 +16,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include <list>
 #include <memory>
 #include <string>
 #include <thread>
 #include <sstream>
-#include <shared_mutex>
 
 #include <asio.hpp>
 #include <asio/detail/noncopyable.hpp>
 
-#include "config.h"
+#include "container.h"
 
 namespace ascs
 {
@@ -151,217 +149,6 @@ public:
 	virtual msg_type pack_msg(const char* const pstr[], const size_t len[], size_t num, bool native = false) {assert(false); return msg_type();}
 };
 
-#if !defined(__clang__) && defined(__GNUC__) &&  __GNUC__ < 5
-//a substitute of std::list (gcc before 5.1), it's size() function has O(1) complexity
-//BTW, the naming rule is not mine, I copied them from std::list in Visual C++ 14.0
-template<typename _Ty, typename _Alloc = std::allocator<_Ty>>
-class list
-{
-public:
-	typedef list<_Ty, _Alloc> _Myt;
-	typedef std::list<_Ty, _Alloc> _Mybase;
-
-	typedef typename _Mybase::size_type size_type;
-
-	typedef typename _Mybase::reference reference;
-	typedef typename _Mybase::const_reference const_reference;
-
-	typedef typename _Mybase::iterator iterator;
-	typedef typename _Mybase::const_iterator const_iterator;
-	typedef typename _Mybase::reverse_iterator reverse_iterator;
-	typedef typename _Mybase::const_reverse_iterator const_reverse_iterator;
-
-	list() : s(0) {}
-	void swap(list& other) {impl.swap(other.impl); std::swap(s, other.s);}
-
-	bool empty() const {return 0 == s;}
-	size_type size() const {return s;}
-	void resize(size_type _Newsize)
-	{
-		while (s < _Newsize)
-		{
-			++s;
-			impl.emplace_back();
-		}
-
-		if (s > _Newsize)
-		{
-			auto end_iter = std::end(impl);
-			auto begin_iter = _Newsize <= s / 2 ? std::next(std::begin(impl), _Newsize) : std::prev(end_iter, s - _Newsize); //minimize iterator movement
-
-			s = _Newsize;
-			impl.erase(begin_iter, end_iter);
-		}
-	}
-	void clear() {s = 0; impl.clear();}
-	iterator erase(const_iterator _Where) {--s; return impl.erase(_Where);}
-
-	void push_front(const _Ty& _Val) {++s; impl.push_front(_Val);}
-	void push_front(_Ty&& _Val) {++s; impl.push_front(std::move(_Val));}
-	void pop_front() {--s; impl.pop_front();}
-	reference front() {return impl.front();}
-	iterator begin() {return impl.begin();}
-	reverse_iterator rbegin() {return impl.rbegin();}
-	const_reference front() const {return impl.front();}
-	const_iterator begin() const {return impl.begin();}
-	const_reverse_iterator rbegin() const {return impl.rbegin();}
-
-	void push_back(const _Ty& _Val) {++s; impl.push_back(_Val);}
-	void push_back(_Ty&& _Val) {++s; impl.push_back(std::move(_Val));}
-	void pop_back() {--s; impl.pop_back();}
-	reference back() {return impl.back();}
-	iterator end() {return impl.end();}
-	reverse_iterator rend() {return impl.rend();}
-	const_reference back() const {return impl.back();}
-	const_iterator end() const {return impl.end();}
-	const_reverse_iterator rend() const {return impl.rend();}
-
-	void splice(const_iterator _Where, _Myt& _Right) {s += _Right.size(); _Right.s = 0; impl.splice(_Where, _Right.impl);}
-	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First) {++s; --_Right.s; impl.splice(_Where, _Right.impl, _First);}
-	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First, const_iterator _Last)
-	{
-		auto size = std::distance(_First, _Last);
-		//this std::distance invocation is the penalty for making complexity of size() constant.
-		s += size;
-		_Right.s -= size;
-
-		impl.splice(_Where, _Right.impl, _First, _Last);
-	}
-
-private:
-	size_type s;
-	_Mybase impl;
-};
-#else
-template<typename T, typename _Alloc = std::allocator<T>> using list = std::list<T, _Alloc>;
-#endif
-
-#ifdef ASCS_USE_CUSTOM_QUEUE
-#elif defined(ASCS_USE_CONCURRENT_QUEUE)
-template<typename T>
-class message_queue_ : public moodycamel::ConcurrentQueue<T>
-{
-public:
-	typedef moodycamel::ConcurrentQueue<T> super;
-	typedef message_queue_<T> me;
-	typedef std::lock_guard<me> lock_guard;
-
-	message_queue_() {}
-	message_queue_(size_t size) : super(size) {}
-
-	size_t size() const {return super::size_approx();}
-	bool empty() const {return 0 == size();}
-
-	//not thread-safe
-	void clear() {super(std::move(*this));}
-	void swap(me& other) {super::swap(other);}
-
-	//lockable, dummy
-	void lock() const {}
-	void unlock() const {}
-
-	bool idle() const {return true;}
-
-	bool enqueue_(const T& item) {return this->enqueue(item);}
-	bool enqueue_(T&& item) {return this->enqueue(std::move(item));}
-	bool try_enqueue_(const T& item) {return this->try_enqueue(item);}
-	bool try_enqueue_(T&& item) {return this->try_enqueue(std::move(item));}
-	bool try_dequeue_(T& item) {return this->try_dequeue(item);}
-};
-#else
-template<typename T>
-class message_queue_ : public list<T>
-{
-public:
-	typedef list<T> super;
-	typedef message_queue_<T> me;
-	typedef std::lock_guard<me> lock_guard;
-
-	message_queue_() {}
-	message_queue_(size_t) {}
-
-	//not thread-safe
-	void clear() {super::clear();}
-	void swap(me& other) {super::swap(other);}
-
-	//lockable
-	void lock() {mutex.lock();}
-	void unlock() {mutex.unlock();}
-
-	bool idle() {std::unique_lock<std::shared_mutex> lock(mutex, std::try_to_lock); return lock.owns_lock();}
-
-	bool enqueue(const T& item) {lock_guard lock(*this); return enqueue_(item);}
-	bool enqueue(T&& item) {lock_guard lock(*this); return enqueue_(std::move(item));}
-	bool try_enqueue(const T& item) {lock_guard lock(*this); return try_enqueue_(item);}
-	bool try_enqueue(T&& item) {lock_guard lock(*this); return try_enqueue_(std::move(item));}
-	bool try_dequeue(T& item) {lock_guard lock(*this); return try_dequeue_(item);}
-
-	bool enqueue_(const T& item) {this->push_back(item); return true;}
-	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
-	bool try_enqueue_(const T& item) {return enqueue_(item);}
-	bool try_enqueue_(T&& item) {return enqueue_(std::move(item));}
-	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
-
-private:
-	std::shared_mutex mutex;
-};
-#endif
-
-#ifndef ASCS_USE_CUSTOM_QUEUE
-template<typename T>
-class message_queue : public message_queue_<T>
-{
-public:
-	typedef message_queue_<T> super;
-
-	message_queue() {}
-	message_queue(size_t size) : super(size) {}
-
-	//it's not thread safe for 'other', please note.
-	size_t move_items_in(typename super::me& other, size_t max_size = ASCS_MAX_MSG_NUM)
-	{
-		typename super::lock_guard lock(*this);
-		auto cur_size = this->size();
-		if (cur_size >= max_size)
-			return 0;
-
-		size_t num = 0;
-		while (cur_size < max_size)
-		{
-			T item;
-			if (!other.try_dequeue_(item)) //not thread safe for 'other', because we called 'try_dequeue_'
-				break;
-
-			this->enqueue_(std::move(item));
-			++cur_size;
-			++num;
-		}
-
-		return num;
-	}
-
-	//it's not thread safe for 'other', please note.
-	size_t move_items_in(list<T>& other, size_t max_size = ASCS_MAX_MSG_NUM)
-	{
-		typename super::lock_guard lock(*this);
-		auto cur_size = this->size();
-		if (cur_size >= max_size)
-			return 0;
-
-		size_t num = 0;
-		while (cur_size < max_size && !other.empty())
-		{
-			this->enqueue_(std::move(other.front()));
-			other.pop_front();
-			++cur_size;
-			++num;
-		}
-
-		return num;
-	}
-};
-#endif
-
 //unpacker concept
 namespace tcp
 {
@@ -434,30 +221,6 @@ void do_something_to_one(_Can& __can, _Mutex& __mutex, const _Predicate& __pred)
 
 template<typename _Can, typename _Predicate>
 void do_something_to_one(_Can& __can, const _Predicate& __pred) {for (auto iter = std::begin(__can); iter != std::end(__can); ++iter) if (__pred(*iter)) break;}
-
-template<typename _Can>
-bool splice_helper(_Can& dest_can, _Can& src_can, size_t max_size = ASCS_MAX_MSG_NUM)
-{
-	if (src_can.empty())
-		return false;
-
-	auto size = dest_can.size();
-	if (size >= max_size) //dest_can can hold more items.
-		return false;
-
-	size = max_size - size; //maximum items this time can handle
-	if (src_can.size() > size) //some items left behind
-	{
-		auto begin_iter = std::begin(src_can);
-		auto left_size = src_can.size() - size;
-		auto end_iter = left_size > size ? std::next(begin_iter, size) : std::prev(std::end(src_can), left_size); //minimize iterator movement
-		dest_can.splice(std::end(dest_can), src_can, begin_iter, end_iter);
-	}
-	else
-		dest_can.splice(std::end(dest_can), src_can);
-
-	return true;
-}
 
 //member functions, used to do something to any member container(except map and multimap) optionally with any member mutex
 #define DO_SOMETHING_TO_ALL_MUTEX(CAN, MUTEX) DO_SOMETHING_TO_ALL_MUTEX_NAME(do_something_to_all, CAN, MUTEX)

@@ -209,10 +209,25 @@ namespace std {typedef shared_timed_mutex shared_mutex;}
 #endif
 
 //ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
-#ifdef ASCS_USE_CUSTOM_QUEUE
-#elif defined(ASCS_USE_CONCURRENT_QUEUE) //if ASCS_USE_CONCURRENT_QUEUE macro not defined, ascs will use 'list' as the message queue, it's not thread safe, so need locks.
+#ifdef ASCS_HAS_CONCURRENT_QUEUE
 #include <concurrentqueue.h>
+	#ifndef ascs_default_queue
+	#define ascs_default_queue lock_free_queue
+	#endif
+	#ifndef ascs_default_queue_container
+	#define ascs_default_queue_container moodycamel::ConcurrentQueue
+	#endif
+#else
+	#ifndef ascs_default_queue
+	#define ascs_default_queue lock_queue
+	#endif
+	#ifndef ascs_default_queue_container
+	#define ascs_default_queue_container list
+	#endif
 #endif
+//we also can control the queues (and their containers) via template parameters on calss 'connector_base'
+//'server_socket_base', 'ssl::connector_base' and 'ssl::server_socket_base'.
+//we even can let a socket to use different queue (and / or different container) for input and output via template parameters.
 //configurations
 
 #endif /* _ASCS_CONFIG_H_ */

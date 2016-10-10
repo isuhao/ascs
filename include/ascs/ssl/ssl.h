@@ -27,11 +27,13 @@
 
 namespace ascs { namespace ssl {
 
-template <typename Packer, typename Unpacker, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>>
-class connector_base : public tcp::connector_base<Packer, Unpacker, Socket>
+template <typename Packer, typename Unpacker, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
+	template<typename, typename> class InQueue = ascs_default_queue, template<typename...> class InQueueContainer = ascs_default_queue_container,
+	template<typename, typename> class OutQueue = ascs_default_queue, template<typename...> class OutQueueContainer = ascs_default_queue_container>
+class connector_base : public tcp::connector_base<Packer, Unpacker, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer>
 {
 protected:
-	typedef tcp::connector_base<Packer, Unpacker, Socket> super;
+	typedef tcp::connector_base<Packer, Unpacker, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer> super;
 
 public:
 	using super::TIMER_BEGIN;
@@ -162,8 +164,10 @@ protected:
 	asio::ssl::context ctx;
 };
 
-template<typename Packer, typename Unpacker, typename Server = i_server, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>>
-using server_socket_base = tcp::server_socket_base<Packer, Unpacker, Server, Socket>;
+template<typename Packer, typename Unpacker, typename Server = i_server, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
+	template<typename, typename> class InQueue = ascs_default_queue, template<typename...> class InQueueContainer = ascs_default_queue_container,
+	template<typename, typename> class OutQueue = ascs_default_queue, template<typename...> class OutQueueContainer = ascs_default_queue_container>
+using server_socket_base = tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer>;
 
 template<typename Socket, typename Pool = object_pool<Socket>, typename Server = i_server>
 class server_base : public tcp::server_base<Socket, Pool, Server>

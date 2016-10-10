@@ -10,7 +10,7 @@
 #define ASCS_ENHANCED_STABILITY
 //#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_USE_STEADY_TIMER
-#define ASCS_USE_CONCURRENT_QUEUE
+#define ASCS_HAS_CONCURRENT_QUEUE
 
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0
@@ -253,7 +253,7 @@ int main(int argc, const char* argv[])
 #undef ASCS_ENHANCED_STABILITY
 #undef ASCS_FULL_STATISTIC
 #undef ASCS_USE_STEADY_TIMER
-#undef ASCS_USE_CONCURRENT_QUEUE
+#undef ASCS_HAS_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_PACKER
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration
