@@ -28,12 +28,12 @@
 namespace ascs { namespace ssl {
 
 template <typename Packer, typename Unpacker, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
-	template<typename, typename> class InQueue = ascs_default_queue, template<typename...> class InQueueContainer = ascs_default_queue_container,
-	template<typename, typename> class OutQueue = ascs_default_queue, template<typename...> class OutQueueContainer = ascs_default_queue_container>
-class connector_base : public tcp::connector_base<Packer, Unpacker, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer>
+	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename...> class InContainer = ASCS_INPUT_CONTAINER,
+	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename...> class OutContainer = ASCS_OUTPUT_CONTAINER>
+class connector_base : public tcp::connector_base<Packer, Unpacker, Socket, InQueue, InContainer, OutQueue, OutContainer>
 {
 protected:
-	typedef tcp::connector_base<Packer, Unpacker, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer> super;
+	typedef tcp::connector_base<Packer, Unpacker, Socket, InQueue, InContainer, OutQueue, OutContainer> super;
 
 public:
 	using super::TIMER_BEGIN;
@@ -165,9 +165,9 @@ protected:
 };
 
 template<typename Packer, typename Unpacker, typename Server = i_server, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
-	template<typename, typename> class InQueue = ascs_default_queue, template<typename...> class InQueueContainer = ascs_default_queue_container,
-	template<typename, typename> class OutQueue = ascs_default_queue, template<typename...> class OutQueueContainer = ascs_default_queue_container>
-using server_socket_base = tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InQueueContainer, OutQueue, OutQueueContainer>;
+	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename...> class InContainer = ASCS_INPUT_CONTAINER,
+	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename...> class OutContainer = ASCS_OUTPUT_CONTAINER>
+using server_socket_base = tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer>;
 
 template<typename Socket, typename Pool = object_pool<Socket>, typename Server = i_server>
 class server_base : public tcp::server_base<Socket, Pool, Server>

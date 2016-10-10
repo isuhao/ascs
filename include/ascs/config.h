@@ -211,18 +211,30 @@ namespace std {typedef shared_timed_mutex shared_mutex;}
 //ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
 #ifdef ASCS_HAS_CONCURRENT_QUEUE
 #include <concurrentqueue.h>
-	#ifndef ascs_default_queue
-	#define ascs_default_queue lock_free_queue
+	#ifndef ASCS_INPUT_QUEUE
+	#define ASCS_INPUT_QUEUE lock_free_queue
 	#endif
-	#ifndef ascs_default_queue_container
-	#define ascs_default_queue_container moodycamel::ConcurrentQueue
+	#ifndef ASCS_INPUT_CONTAINER
+	#define ASCS_INPUT_CONTAINER moodycamel::ConcurrentQueue
+	#endif
+	#ifndef ASCS_OUTPUT_QUEUE
+	#define ASCS_OUTPUT_QUEUE lock_free_queue
+	#endif
+	#ifndef ASCS_OUTPUT_CONTAINER
+	#define ASCS_OUTPUT_CONTAINER moodycamel::ConcurrentQueue
 	#endif
 #else
-	#ifndef ascs_default_queue
-	#define ascs_default_queue lock_queue
+	#ifndef ASCS_INPUT_QUEUE
+	#define ASCS_INPUT_QUEUE lock_queue
 	#endif
-	#ifndef ascs_default_queue_container
-	#define ascs_default_queue_container list
+	#ifndef ASCS_INPUT_CONTAINER
+	#define ASCS_INPUT_CONTAINER list
+	#endif
+	#ifndef ASCS_OUTPUT_QUEUE
+	#define ASCS_OUTPUT_QUEUE lock_queue
+	#endif
+	#ifndef ASCS_OUTPUT_CONTAINER
+	#define ASCS_OUTPUT_CONTAINER list
 	#endif
 #endif
 //we also can control the queues (and their containers) via template parameters on calss 'connector_base'

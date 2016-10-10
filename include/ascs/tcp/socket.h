@@ -20,9 +20,8 @@
 namespace ascs { namespace tcp {
 
 template <typename Socket, typename Packer, typename Unpacker,
-	template<typename, typename> class InQueue, template<typename...> class InQueueContainer,
-	template<typename, typename> class OutQueue, template<typename...> class OutQueueContainer>
-class socket_base : public socket<Socket, Packer, Unpacker, typename Packer::msg_type, typename Unpacker::msg_type, InQueue, InQueueContainer, OutQueue, OutQueueContainer>
+	template<typename, typename> class InQueue, template<typename...> class InContainer, template<typename, typename> class OutQueue, template<typename...> class OutContainer>
+class socket_base : public socket<Socket, Packer, Unpacker, typename Packer::msg_type, typename Unpacker::msg_type, InQueue, InContainer, OutQueue, OutContainer>
 {
 public:
 	typedef typename Packer::msg_type in_msg_type;
@@ -31,7 +30,7 @@ public:
 	typedef typename Unpacker::msg_ctype out_msg_ctype;
 
 protected:
-	typedef socket<Socket, Packer, Unpacker, typename Packer::msg_type, typename Unpacker::msg_type, InQueue, InQueueContainer, OutQueue, OutQueueContainer> super;
+	typedef socket<Socket, Packer, Unpacker, typename Packer::msg_type, typename Unpacker::msg_type, InQueue, InContainer, OutQueue, OutContainer> super;
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 

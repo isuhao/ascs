@@ -7,7 +7,10 @@
 #define ASCS_REUSE_OBJECT //use objects pool
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #define ASCS_MSG_BUFFER_SIZE 65536
-#define ASCS_HAS_CONCURRENT_QUEUE
+#define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks.
+#define ASCS_OUTPUT_QUEUE non_lock_queue //we will never operate receiving buffer concurrently, so need no locks too.
+										 //while doing congestion control, receiving buffer will be used temporarily,
+										 //but it will not be accessed concurrently (guarantee of ascs::socket), please note.
 #define ASCS_DEFAULT_UNPACKER stream_unpacker //non-protocol
 //configuration
 
@@ -141,6 +144,7 @@ int main(int argc, const char* argv[])
 #undef ASCS_REUSE_OBJECT
 #undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #undef ASCS_MSG_BUFFER_SIZE
-#undef ASCS_HAS_CONCURRENT_QUEUE
+#undef ASCS_INPUT_QUEUE
+#undef ASCS_OUTPUT_QUEUE
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration

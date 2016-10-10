@@ -4,6 +4,8 @@
 //configuration
 #define ASCS_SERVER_PORT		5050
 #define ASCS_HAS_CONCURRENT_QUEUE
+#define ASCS_OUTPUT_QUEUE non_lock_queue //we will never operate receiving buffer concurrently, so need no locks too.
+#define ASCS_OUTPUT_CONTAINER list
 #define ASCS_DEFAULT_UNPACKER replaceable_unpacker
 //configuration
 
@@ -90,5 +92,7 @@ int main(int argc, const char* argv[])
 //restore configuration
 #undef ASCS_SERVER_PORT
 #undef ASCS_HAS_CONCURRENT_QUEUE
+#undef ASCS_OUTPUT_QUEUE
+#undef ASCS_OUTPUT_CONTAINER
 #undef ASCS_DEFAULT_UNPACKER
 //restore configuration

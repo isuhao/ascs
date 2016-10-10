@@ -22,8 +22,7 @@ namespace ascs
 {
 
 template<typename Socket, typename Packer, typename Unpacker, typename InMsgType, typename OutMsgType,
-	template<typename, typename> class InQueue, template<typename...> class InQueueContainer,
-	template<typename, typename> class OutQueue, template<typename...> class OutQueueContainer>
+	template<typename, typename> class InQueue, template<typename...> class InContainer, template<typename, typename> class OutQueue, template<typename...> class OutContainer>
 class socket: public timer
 {
 public:
@@ -145,8 +144,8 @@ protected:
 
 	typedef obj_with_begin_time<InMsgType> in_msg;
 	typedef obj_with_begin_time<OutMsgType> out_msg;
-	typedef queue<InQueue<in_msg, InQueueContainer<in_msg>>> in_container_type;
-	typedef queue<OutQueue<out_msg, OutQueueContainer<out_msg>>> out_container_type;
+	typedef queue<InQueue<in_msg, InContainer<in_msg>>> in_container_type;
+	typedef queue<OutQueue<out_msg, OutContainer<out_msg>>> out_container_type;
 
 	static const tid TIMER_BEGIN = timer::TIMER_END;
 	static const tid TIMER_HANDLE_MSG = TIMER_BEGIN;

@@ -18,12 +18,12 @@
 namespace ascs { namespace udp {
 
 template <typename Packer, typename Unpacker, typename Socket = asio::ip::udp::socket,
-	template<typename, typename> class InQueue = ascs_default_queue, template<typename...> class InQueueContainer = ascs_default_queue_container,
-	template<typename, typename> class OutQueue = ascs_default_queue, template<typename...> class OutQueueContainer = ascs_default_queue_container>
-class socket_base : public socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InQueueContainer, OutQueue, OutQueueContainer>
+	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename...> class InContainer = ASCS_INPUT_CONTAINER,
+	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename...> class OutContainer = ASCS_OUTPUT_CONTAINER>
+class socket_base : public socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InContainer, OutQueue, OutContainer>
 {
 protected:
-	typedef socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InQueueContainer, OutQueue, OutQueueContainer> super;
+	typedef socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InContainer, OutQueue, OutContainer> super;
 
 public:
 	typedef udp_msg<typename Packer::msg_type> in_msg_type;

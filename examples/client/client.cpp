@@ -5,12 +5,7 @@
 #define ASCS_SERVER_PORT		9527
 #define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER //force to use the msg recv buffer
 #define ASCS_CUSTOM_LOG
-#define ascs_default_queue non_lock_queue //we never send message concurrently, so the queue doesn't have to be thread safe
-//we also can control queues (and containers used by queues) via template parameters, see connector_base, server_socket_base,
-//ssl::connector_base and ssl::server_socket_base for more details.
-//#define ascs_default_queue_container list
-//'list' is enough, but we don't have to define it, because we not defined ASCS_HAS_CONCURRENT_QUEUE macro,
-//so, the default value is already 'list'.
+#define ASCS_HAS_CONCURRENT_QUEUE
 #define ASCS_DEFAULT_UNPACKER	non_copy_unpacker
 //#define ASCS_DEFAULT_UNPACKER	stream_unpacker
 
@@ -104,8 +99,7 @@ int main(int argc, const char* argv[])
 #undef ASCS_SERVER_PORT
 #undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #undef ASCS_CUSTOM_LOG
-#undef ascs_default_queue
-#undef ascs_default_queue_container
+#undef ASCS_HAS_CONCURRENT_QUEUE
 #undef ASCS_DEFAULT_UNPACKER
 
 //#undef ASCS_HUGE_MSG
