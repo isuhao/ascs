@@ -241,18 +241,19 @@ public:
 	//it's not thread safe for 'other', please note. for this queue, depends on 'T'
 	size_t move_items_in(typename T::me& other, size_t max_size = ASCS_MAX_MSG_NUM)
 	{
-		typename T::lock_guard lock(*this);
+		if (other.empty())
+			return 0;
+
 		auto cur_size = this->size();
 		if (cur_size >= max_size)
 			return 0;
 
 		size_t num = 0;
-		while (cur_size < max_size)
-		{
-			typename T::data_type item;
-			if (!other.try_dequeue_(item)) //not thread safe for 'other', because we called 'try_dequeue_'
-				break;
+		typename T::data_type item;
 
+		typename T::lock_guard lock(*this);
+		while (cur_size < max_size && other.try_dequeue_(item)) //size not controlled accurately
+		{
 			this->enqueue_(std::move(item));
 			++cur_size;
 			++num;
@@ -264,13 +265,17 @@ public:
 	//it's not thread safe for 'other', please note. for this queue, depends on 'T'
 	size_t move_items_in(list<typename T::data_type>& other, size_t max_size = ASCS_MAX_MSG_NUM)
 	{
-		typename T::lock_guard lock(*this);
+		if (other.empty())
+			return 0;
+
 		auto cur_size = this->size();
 		if (cur_size >= max_size)
 			return 0;
 
 		size_t num = 0;
-		while (cur_size < max_size && !other.empty())
+
+		typename T::lock_guard lock(*this);
+		while (cur_size < max_size && !other.empty()) //size not controlled accurately
 		{
 			this->enqueue_(std::move(other.front()));
 			other.pop_front();

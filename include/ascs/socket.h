@@ -354,11 +354,8 @@ protected:
 		auto temp_buffer(std::move(temp_msg_buffer));
 #endif
 
-		if (!temp_buffer.empty())
-		{
-			recv_msg_buffer.move_items_in(temp_buffer, -1);
+		if (recv_msg_buffer.move_items_in(temp_buffer, -1) > 0)
 			dispatch_msg();
-		}
 
 		if (temp_msg_buffer.empty() && recv_msg_buffer.size() < ASCS_MAX_MSG_NUM)
 			do_recv_msg(); //receive msg sequentially, which means second receiving only after first receiving success

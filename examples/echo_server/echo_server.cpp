@@ -11,12 +11,6 @@
 //#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_USE_STEADY_TIMER
 #define ASCS_HAS_CONCURRENT_QUEUE
-#define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks.
-#define ASCS_OUTPUT_QUEUE non_lock_queue //we will never operate receiving buffer concurrently, so need no locks too.
-										 //while doing congestion control, receiving buffer will be used temporarily,
-										 //but it will not be accessed concurrently (guarantee of ascs::socket), please note.
-#define ASCS_INPUT_CONTAINER list
-#define ASCS_OUTPUT_CONTAINER list
 
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0
@@ -170,11 +164,7 @@ int main(int argc, const char* argv[])
 	//only need a simple server? you can directly use server or ascs::tcp::server_base.
 	//because we use ascs::tcp::server_socket_base directly, so this server cannot support fixed_length_unpacker and prefix_suffix_packer/prefix_suffix_unpacker,
 	//the reason is these packer and unpacker need additional initializations that ascs::tcp::server_socket_base not implemented, see echo_socket's constructor for more details.
-#ifdef ASCS_HAS_CONCURRENT_QUEUE
-	typedef server_socket_base<packer, unpacker, i_server, asio::ip::tcp::socket, lock_free_queue, moodycamel::ConcurrentQueue, lock_free_queue, moodycamel::ConcurrentQueue> normal_server_socket;
-#else
-	typedef server_socket_base<packer, unpacker, i_server, asio::ip::tcp::socket, lock_queue, list, lock_queue, list> normal_server_socket;
-#endif
+	typedef server_socket_base<packer, unpacker> normal_server_socket;
 	server_base<normal_server_socket> server_(sp);
 	echo_server echo_server_(sp); //echo server
 
@@ -253,21 +243,3 @@ int main(int argc, const char* argv[])
 
 	return 0;
 }
-
-//restore configuration
-#undef ASCS_SERVER_PORT
-#undef ASCS_ASYNC_ACCEPT_NUM
-#undef ASCS_REUSE_OBJECT
-#undef ASCS_FREE_OBJECT_INTERVAL
-#undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-#undef ASCS_ENHANCED_STABILITY
-#undef ASCS_FULL_STATISTIC
-#undef ASCS_USE_STEADY_TIMER
-#undef ASCS_HAS_CONCURRENT_QUEUE
-#undef ASCS_INPUT_QUEUE
-#undef ASCS_OUTPUT_QUEUE
-#undef ASCS_INPUT_CONTAINER
-#undef ASCS_OUTPUT_CONTAINER
-#undef ASCS_DEFAULT_PACKER
-#undef ASCS_DEFAULT_UNPACKER
-//restore configuration

@@ -7,8 +7,9 @@
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 //#define ASCS_WANT_MSG_SEND_NOTIFY
 #define ASCS_MSG_BUFFER_SIZE 65536
+#define ASCS_HAS_CONCURRENT_QUEUE
 #define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks.
-#define ASCS_OUTPUT_QUEUE non_lock_queue //we will never operate receiving buffer concurrently, so need no locks too.
+#define ASCS_INPUT_CONTAINER list
 #define ASCS_DEFAULT_UNPACKER stream_unpacker //non-protocol
 //configuration
 
@@ -76,9 +77,7 @@ protected:
 	{
 		send_bytes += msg.size();
 		if (send_bytes < total_bytes)
-			direct_send_msg(std::move(msg));
-			//this invocation has no chance to fail (by insufficient sending buffer), even can_overflow is false
-			//this is because here is the only place that will send msgs and here also means the receiving buffer at least can hold one more msg.
+			direct_send_msg(std::move(msg), true);
 	}
 
 private:
@@ -104,10 +103,7 @@ private:
 				begin_time.stop();
 		}
 		else
-			direct_send_msg(std::move(msg));
-			//this invocation has no chance to fail (by insufficient sending buffer), even can_overflow is false
-			//this is because pingpong_server never send msgs initiatively, and,
-			//here is the only place that will send msgs and here also means the receiving buffer at least can hold one more msg.
+			direct_send_msg(std::move(msg), true);
 	}
 #endif
 
@@ -216,14 +212,3 @@ int main(int argc, const char* argv[])
 
     return 0;
 }
-
-//restore configuration
-#undef ASCS_SERVER_PORT
-#undef ASCS_REUSE_OBJECT
-#undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-#undef ASCS_WANT_MSG_SEND_NOTIFY
-#undef ASCS_MSG_BUFFER_SIZE
-#undef ASCS_INPUT_QUEUE
-#undef ASCS_OUTPUT_QUEUE
-#undef ASCS_DEFAULT_UNPACKER
-//restore configuration

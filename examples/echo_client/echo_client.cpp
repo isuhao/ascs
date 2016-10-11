@@ -8,11 +8,10 @@
 //#define ASCS_CLEAR_OBJECT_INTERVAL	1
 #define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_WANT_MSG_SEND_NOTIFY
+#define ASCS_HAS_CONCURRENT_QUEUE
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 #define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks.
-#define ASCS_OUTPUT_QUEUE non_lock_queue //we will never use receiving buffer, so need no locks too.
-#else
-#define ASCS_HAS_CONCURRENT_QUEUE
+#define ASCS_INPUT_CONTAINER list
 #endif
 //configuration
 
@@ -135,9 +134,7 @@ protected:
 		++send_index;
 		memcpy(pstr, &send_index, sizeof(size_t)); //seq
 
-		send_msg(pstr, msg_len);
-		//this invocation has no chance to fail (by insufficient sending buffer), even can_overflow is false
-		//this is because here is the only place that will send msgs and here also means the receiving buffer at least can hold one more msg.
+		send_msg(pstr, msg_len, true);
 	}
 #endif
 
@@ -444,17 +441,3 @@ int main(int argc, const char* argv[])
 
     return 0;
 }
-
-//restore configuration
-#undef ASCS_SERVER_PORT
-#undef ASCS_REUSE_OBJECT
-#undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-#undef ASCS_CLEAR_OBJECT_INTERVAL
-#undef ASCS_FULL_STATISTIC
-#undef ASCS_WANT_MSG_SEND_NOTIFY
-#undef ASCS_INPUT_QUEUE
-#undef ASCS_OUTPUT_QUEUE
-#undef ASCS_HAS_CONCURRENT_QUEUE
-#undef ASCS_DEFAULT_PACKER
-#undef ASCS_DEFAULT_UNPACKER
-//restore configuration
