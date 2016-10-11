@@ -1,5 +1,5 @@
 /*
- * sconnector.h
+ * connector.h
  *
  *  Created on: 2012-3-2
  *      Author: youngwolf
