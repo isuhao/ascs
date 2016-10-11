@@ -8,7 +8,7 @@
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #define ASCS_MSG_BUFFER_SIZE 65536
 #define ASCS_HAS_CONCURRENT_QUEUE
-#define ST_ASIO_INPUT_QUEUE non_lock_queue
+#define ASCS_INPUT_QUEUE non_lock_queue
 #define ASCS_INPUT_CONTAINER list
 //if pingpong_client only send message in on_msg() or on_msg_handle(), which means a responsive system, a real pingpong test,
 //then, before pingpong_server send each message, the previous message has been sent to pingpong_client,
@@ -59,7 +59,7 @@ protected:
 	//msg handling: send the original msg back(echo server)
 	//congestion control, method #1, the peer needs its own congestion control too.
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-	//this virtual function doesn't exists if ST_ASIO_FORCE_TO_USE_MSG_RECV_BUFFER been defined
+	//this virtual function doesn't exists if ASCS_FORCE_TO_USE_MSG_RECV_BUFFER been defined
 	virtual bool on_msg(out_msg_type& msg)
 	{
 		auto re = direct_send_msg(std::move(msg));

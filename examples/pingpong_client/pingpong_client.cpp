@@ -43,7 +43,7 @@ std::atomic_ushort completed_session_num;
 //2. for sender, if responses are available (like pingpong test), send msgs in on_msg()/on_msg_handle().
 //    this will reduce IO throughput because, SOCKET's sliding window is not fully used, pleae note.
 //
-//pingpong_client will choose method #1 if defined ST_ASIO_WANT_MSG_SEND_NOTIFY, otherwise #2
+//pingpong_client will choose method #1 if defined ASCS_WANT_MSG_SEND_NOTIFY, otherwise #2
 //BTW, if pingpong_client chose method #2, then pingpong_server can work properly without any congestion control,
 //which means pingpong_server can send msgs back with can_overflow parameter equal to true, and memory occupation
 //will be under control.
