@@ -142,14 +142,3 @@ int main(int argc, const char* argv[])
 
 	return 0;
 }
-
-//restore configuration
-#undef ASCS_SERVER_PORT
-#undef ASCS_ASYNC_ACCEPT_NUM
-#undef ASCS_REUSE_OBJECT
-#undef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-#undef ASCS_MSG_BUFFER_SIZE
-#undef ASCS_INPUT_QUEUE
-#undef ASCS_OUTPUT_QUEUE
-#undef ASCS_DEFAULT_UNPACKER
-//restore configuration

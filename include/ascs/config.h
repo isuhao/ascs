@@ -35,6 +35,16 @@
  * Add a new packer--fixed_length_packer.
  * Add a new class--message_queue.
  *
+ * 2016.10.16	version 1.3.1
+ * Support non-lock queue, it's totally not thread safe and lock-free, it can improve IO throughput with particular business.
+ * Demonstrate how and when to use non-lock queue as the input and output message buffer.
+ * Queues (and their internal containers) used as input and output message buffer are now configurable (by macros or template arguments).
+ * New macros--ASCS_INPUT_QUEUE, ASCS_INPUT_CONTAINER, ASCS_OUTPUT_QUEUE and ASCS_OUTPUT_CONTAINER.
+ * Drop macro ASCS_USE_CONCURRENT_QUEUE, rename macro ASCS_USE_CONCURRE to ASCS_HAS_CONCURRENT_QUEUE.
+ * In contrast to non_lock_queue, split message_queue into lock_queue and lock_free_queue.
+ * Move container related classes and functions from st_asio_wrapper_base.h to st_asio_wrapper_container.h.
+ * Improve efficiency in scenarios of low throughput like pingpong test.
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
@@ -44,8 +54,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10100	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.1.0"
+#define ASCS_VER		10101	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.1"
 
 //asio and compiler check
 #ifdef _MSC_VER
@@ -107,7 +117,7 @@ static_assert(ASCS_MAX_MSG_NUM > 0, "message capacity must be bigger than zero."
 
 //after this duration, this socket can be freed from the heap or reused,
 //you must define this macro as a value, not just define it, the value means the duration, unit is second.
-//if macro ST_ASIO_ENHANCED_STABILITY been defined, this macro will always be zero.
+//if macro ASCS_ENHANCED_STABILITY been defined, this macro will always be zero.
 #ifdef ASCS_ENHANCED_STABILITY
 #if defined(ASCS_DELAY_CLOSE) && ASCS_DELAY_CLOSE != 0
 #warning ASCS_DELAY_CLOSE will always be zero if ASCS_ENHANCED_STABILITY macro been defined.
@@ -151,7 +161,7 @@ static_assert(ASCS_MAX_OBJECT_NUM > 0, "object capacity must be bigger than zero
 #ifndef ASCS_REUSE_OBJECT
 	#ifndef ASCS_FREE_OBJECT_INTERVAL
 	#define ASCS_FREE_OBJECT_INTERVAL	60 //seconds
-	#elif ST_ASIO_FREE_OBJECT_INTERVAL <= 0
+	#elif ASCS_FREE_OBJECT_INTERVAL <= 0
 		#error free object interval must be bigger than zero.
 	#endif
 #endif
