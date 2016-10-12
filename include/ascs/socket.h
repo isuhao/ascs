@@ -145,8 +145,8 @@ protected:
 
 	typedef obj_with_begin_time<InMsgType> in_msg;
 	typedef obj_with_begin_time<OutMsgType> out_msg;
-	typedef queue<InQueue<in_msg, InContainer<in_msg>>> in_container_type;
-	typedef queue<OutQueue<out_msg, OutContainer<out_msg>>> out_container_type;
+	typedef InQueue<in_msg, InContainer<in_msg>> in_container_type;
+	typedef OutQueue<out_msg, OutContainer<out_msg>> out_container_type;
 
 	static const tid TIMER_BEGIN = timer::TIMER_END;
 	static const tid TIMER_HANDLE_MSG = TIMER_BEGIN;
@@ -355,7 +355,7 @@ protected:
 		auto temp_buffer(std::move(temp_msg_buffer));
 #endif
 
-		if (recv_msg_buffer.move_items_in(temp_buffer, -1) > 0)
+		if (move_items_in(recv_msg_buffer, temp_buffer, -1) > 0)
 			dispatch_msg();
 
 		if (temp_msg_buffer.empty() && recv_msg_buffer.size() < ASCS_MAX_MSG_NUM)

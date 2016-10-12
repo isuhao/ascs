@@ -21,6 +21,7 @@
 namespace ascs
 {
 
+//ascs requires that container must take one and only one template argument.
 #if defined(_MSC_VER) || defined(__clang__) || __GNUC__ >= 5
 template<typename T> using list = std::list<T>;
 #else
@@ -106,6 +107,56 @@ private:
 };
 #endif
 
+//it's not thread safe for 'other', please note. for this queue, depends on 'Q'
+template<typename Q>
+size_t move_items_in(Q& dest, Q& other, size_t max_size = ASCS_MAX_MSG_NUM)
+{
+	if (other.empty())
+		return 0;
+
+	auto cur_size = dest.size();
+	if (cur_size >= max_size)
+		return 0;
+
+	size_t num = 0;
+	typename Q::data_type item;
+
+	typename Q::lock_guard lock(dest);
+	while (cur_size < max_size && other.try_dequeue_(item)) //size not controlled accurately
+	{
+		dest.enqueue_(std::move(item));
+		++cur_size;
+		++num;
+	}
+
+	return num;
+}
+
+//it's not thread safe for 'other', please note. for this queue, depends on 'Q'
+template<typename Q>
+size_t move_items_in(Q& dest, list<typename Q::data_type>& other, size_t max_size = ASCS_MAX_MSG_NUM)
+{
+	if (other.empty())
+		return 0;
+
+	auto cur_size = dest.size();
+	if (cur_size >= max_size)
+		return 0;
+
+	size_t num = 0;
+
+	typename Q::lock_guard lock(dest);
+	while (cur_size < max_size && !other.empty()) //size not controlled accurately
+	{
+		dest.enqueue_(std::move(other.front()));
+		other.pop_front();
+		++cur_size;
+		++num;
+	}
+
+	return num;
+}
+
 class dummy_lockable
 {
 public:
@@ -160,6 +211,9 @@ public:
 	bool enqueue_(const T& item) {return this->enqueue(item);}
 	bool enqueue_(T&& item) {return this->enqueue(std::move(item));}
 	bool try_dequeue_(T& item) {return this->try_dequeue(item);}
+
+	friend size_t move_items_in<me>(me&, me&, size_t);
+	friend size_t move_items_in<me>(me&, list<T>&, size_t);
 };
 
 //Container must at least has the following functions:
@@ -172,120 +226,35 @@ public:
 // push_back(T&& item)
 // front
 // pop_front
-//
-//totally not thread safe.
-template<typename T, typename Container>
-class non_lock_queue : public Container, public dummy_lockable
+template<typename T, typename Container, typename Lockable>
+class queue : public Container, public Lockable
 {
 public:
 	typedef T data_type;
 	typedef Container super;
-	typedef non_lock_queue<T, Container> me;
+	typedef queue<T, Container, Lockable> me;
 
-	non_lock_queue() {}
-	non_lock_queue(size_t) {}
-
-	void clear() {super::clear();}
-	void swap(me& other) {super::swap(other);}
-
-	bool enqueue(const T& item) {return enqueue_(item);}
-	bool enqueue(T&& item) {return enqueue_(std::move(item));}
-	bool try_dequeue(T& item) {return try_dequeue_(item);}
-
-	bool enqueue_(const T& item) {this->push_back(item); return true;}
-	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
-	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
-};
-
-//Container must at least has the following functions:
-// Container() constructor
-// size
-// empty
-// clear
-// swap
-// push_back(const T& item)
-// push_back(T&& item)
-// front
-// pop_front
-template<typename T, typename Container>
-class lock_queue : public Container, public lockable
-{
-public:
-	typedef T data_type;
-	typedef Container super;
-	typedef lock_queue<T, Container> me;
-
-	lock_queue() {}
-	lock_queue(size_t) {}
+	queue() {}
+	queue(size_t size) : super(size) {}
 
 	//not thread-safe
 	void clear() {super::clear();}
 	void swap(me& other) {super::swap(other);}
 
-	bool enqueue(const T& item) {lock_guard lock(*this); return enqueue_(item);}
-	bool enqueue(T&& item) {lock_guard lock(*this); return enqueue_(std::move(item));}
-	bool try_dequeue(T& item) {lock_guard lock(*this); return try_dequeue_(item);}
+	bool enqueue(const T& item) {typename Lockable::lock_guard lock(*this); return enqueue_(item);}
+	bool enqueue(T&& item) {typename Lockable::lock_guard lock(*this); return enqueue_(std::move(item));}
+	bool try_dequeue(T& item) {typename Lockable::lock_guard lock(*this); return try_dequeue_(item);}
 
 	bool enqueue_(const T& item) {this->push_back(item); return true;}
 	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
 	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
+
+	friend size_t move_items_in<me>(me&, me&, size_t);
+	friend size_t move_items_in<me>(me&, list<T>&, size_t);
 };
 
-template<typename T>
-class queue : public T
-{
-public:
-	queue() {}
-	queue(size_t size) : T(size) {}
-
-	//it's not thread safe for 'other', please note. for this queue, depends on 'T'
-	size_t move_items_in(typename T::me& other, size_t max_size = ASCS_MAX_MSG_NUM)
-	{
-		if (other.empty())
-			return 0;
-
-		auto cur_size = this->size();
-		if (cur_size >= max_size)
-			return 0;
-
-		size_t num = 0;
-		typename T::data_type item;
-
-		typename T::lock_guard lock(*this);
-		while (cur_size < max_size && other.try_dequeue_(item)) //size not controlled accurately
-		{
-			this->enqueue_(std::move(item));
-			++cur_size;
-			++num;
-		}
-
-		return num;
-	}
-
-	//it's not thread safe for 'other', please note. for this queue, depends on 'T'
-	size_t move_items_in(list<typename T::data_type>& other, size_t max_size = ASCS_MAX_MSG_NUM)
-	{
-		if (other.empty())
-			return 0;
-
-		auto cur_size = this->size();
-		if (cur_size >= max_size)
-			return 0;
-
-		size_t num = 0;
-
-		typename T::lock_guard lock(*this);
-		while (cur_size < max_size && !other.empty()) //size not controlled accurately
-		{
-			this->enqueue_(std::move(other.front()));
-			other.pop_front();
-			++cur_size;
-			++num;
-		}
-
-		return num;
-	}
-};
+template<typename T, typename Container> using non_lock_queue = queue<T, Container, dummy_lockable>; //totally not thread safe.
+template<typename T, typename Container> using lock_queue = queue<T, Container, lockable>;
 
 template<typename _Can>
 bool splice_helper(_Can& dest_can, _Can& src_can, size_t max_size = ASCS_MAX_MSG_NUM)
