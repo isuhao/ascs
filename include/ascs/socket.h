@@ -22,7 +22,8 @@ namespace ascs
 {
 
 template<typename Socket, typename Packer, typename Unpacker, typename InMsgType, typename OutMsgType,
-	template<typename, typename> class InQueue, template<typename...> class InContainer, template<typename, typename> class OutQueue, template<typename...> class OutContainer>
+	template<typename, typename> class InQueue, template<typename> class InContainer,
+	template<typename, typename> class OutQueue, template<typename> class OutContainer>
 class socket: public timer
 {
 public:

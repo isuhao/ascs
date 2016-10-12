@@ -211,17 +211,18 @@ namespace std {typedef shared_timed_mutex shared_mutex;}
 //ConcurrentQueue is lock-free, please refer to https://github.com/cameron314/concurrentqueue
 #ifdef ASCS_HAS_CONCURRENT_QUEUE
 #include <concurrentqueue.h>
+template<typename T> using concurrent_queue = moodycamel::ConcurrentQueue<T>;
 	#ifndef ASCS_INPUT_QUEUE
 	#define ASCS_INPUT_QUEUE lock_free_queue
 	#endif
 	#ifndef ASCS_INPUT_CONTAINER
-	#define ASCS_INPUT_CONTAINER moodycamel::ConcurrentQueue
+	#define ASCS_INPUT_CONTAINER concurrent_queue
 	#endif
 	#ifndef ASCS_OUTPUT_QUEUE
 	#define ASCS_OUTPUT_QUEUE lock_free_queue
 	#endif
 	#ifndef ASCS_OUTPUT_CONTAINER
-	#define ASCS_OUTPUT_CONTAINER moodycamel::ConcurrentQueue
+	#define ASCS_OUTPUT_CONTAINER concurrent_queue
 	#endif
 #else
 	#ifndef ASCS_INPUT_QUEUE

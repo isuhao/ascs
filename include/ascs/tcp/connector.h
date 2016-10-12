@@ -18,8 +18,8 @@
 namespace ascs { namespace tcp {
 
 template <typename Packer, typename Unpacker, typename Socket = asio::ip::tcp::socket,
-	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename...> class InContainer = ASCS_INPUT_CONTAINER,
-	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename...> class OutContainer = ASCS_OUTPUT_CONTAINER>
+	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename> class InContainer = ASCS_INPUT_CONTAINER,
+	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename> class OutContainer = ASCS_OUTPUT_CONTAINER>
 class connector_base : public socket_base<Socket, Packer, Unpacker, InQueue, InContainer, OutQueue, OutContainer>
 {
 protected:

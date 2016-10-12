@@ -20,7 +20,8 @@
 namespace ascs { namespace tcp {
 
 template <typename Socket, typename Packer, typename Unpacker,
-	template<typename, typename> class InQueue, template<typename...> class InContainer, template<typename, typename> class OutQueue, template<typename...> class OutContainer>
+	template<typename, typename> class InQueue, template<typename> class InContainer,
+	template<typename, typename> class OutQueue, template<typename> class OutContainer>
 class socket_base : public socket<Socket, Packer, Unpacker, typename Packer::msg_type, typename Unpacker::msg_type, InQueue, InContainer, OutQueue, OutContainer>
 {
 public:

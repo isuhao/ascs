@@ -21,19 +21,17 @@
 namespace ascs
 {
 
-#ifdef _MSC_VER
-template<typename T> using list = std::list<T, std::allocator<T>>; //sorry visual c++, but you only support at most 4 tiers templates.
-#elif defined(__clang__) || __GNUC__ >= 5
-template<typename T, typename _Alloc = std::allocator<T>> using list = std::list<T, _Alloc>;
+#if defined(_MSC_VER) || defined(__clang__) || __GNUC__ >= 5
+template<typename T> using list = std::list<T>;
 #else
 //a substitute of std::list (before gcc 5), it's size() function has O(1) complexity
 //BTW, the naming rule is not mine, I copied them from std::list in Visual C++ 14.0
-template<typename _Ty, typename _Alloc = std::allocator<_Ty>>
+template<typename _Ty>
 class list
 {
 public:
-	typedef list<_Ty, _Alloc> _Myt;
-	typedef std::list<_Ty, _Alloc> _Mybase;
+	typedef list<_Ty> _Myt;
+	typedef std::list<_Ty> _Mybase;
 
 	typedef typename _Mybase::size_type size_type;
 
