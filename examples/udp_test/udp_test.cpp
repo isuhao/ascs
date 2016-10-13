@@ -2,8 +2,8 @@
 #include <iostream>
 
 //configuration
-//#define ASCS_DEFAULT_PACKER replaceable_packer
-//#define ASCS_DEFAULT_UDP_UNPACKER replaceable_udp_unpacker
+//#define ASCS_DEFAULT_PACKER replaceable_packer<>
+//#define ASCS_DEFAULT_UDP_UNPACKER replaceable_udp_unpacker<>
 //configuration
 
 #include <ascs/ext/udp.h>

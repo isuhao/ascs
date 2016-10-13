@@ -4,7 +4,7 @@
 //configuration
 #define ASCS_SERVER_PORT		5050
 //we cannot use non_lock_queue, because we also send messages (talking messages) out of ascs::socket::on_msg_send().
-#define ASCS_DEFAULT_UNPACKER replaceable_unpacker
+#define ASCS_DEFAULT_UNPACKER replaceable_unpacker<>
 //configuration
 
 #include "file_client.h"

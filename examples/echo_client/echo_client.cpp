@@ -22,8 +22,8 @@
 //3-prefix and suffix packer and unpacker
 
 #if 1 == PACKER_UNPACKER_TYPE
-#define ASCS_DEFAULT_PACKER replaceable_packer
-#define ASCS_DEFAULT_UNPACKER replaceable_unpacker
+#define ASCS_DEFAULT_PACKER replaceable_packer<>
+#define ASCS_DEFAULT_UNPACKER replaceable_unpacker<>
 #elif 2 == PACKER_UNPACKER_TYPE
 #define ASCS_DEFAULT_PACKER fixed_length_packer
 #define ASCS_DEFAULT_UNPACKER fixed_length_unpacker
