@@ -29,7 +29,7 @@
 namespace ascs { namespace ext {
 
 //protocol: length + body
-class unpacker : public ascs::tcp::i_unpacker<std::string>
+class unpacker : public tcp::i_unpacker<std::string>
 {
 public:
 	unpacker() {reset_state();}
@@ -144,7 +144,7 @@ template<typename T = replaceable_buffer>
 class replaceable_unpacker : public ascs::tcp::i_unpacker<T>
 {
 protected:
-	typedef i_unpacker<T> super;
+	typedef ascs::tcp::i_unpacker<T> super;
 
 public:
 	virtual void reset_state() {unpacker_.reset_state();}
@@ -173,10 +173,10 @@ protected:
 //protocol: UDP has message boundary, so we don't need a specific protocol to unpack it.
 //T can be replaceable_buffer (an alias of auto_buffer) or shared_buffer, the latter makes output messages seemingly copyable.
 template<typename T = replaceable_buffer>
-class replaceable_udp_unpacker : public udp::i_unpacker<T>
+class replaceable_udp_unpacker : public ascs::udp::i_unpacker<T>
 {
 protected:
-	typedef i_packer<T> super;
+	typedef ascs::udp::i_unpacker<T> super;
 
 public:
 	virtual typename super::msg_type parse_msg(size_t bytes_transferred)
@@ -195,7 +195,7 @@ protected:
 
 //protocol: length + body
 //this unpacker demonstrate how to forbid memory replication while parsing msgs (let asio write msg directly).
-class non_copy_unpacker : public ascs::tcp::i_unpacker<basic_buffer>
+class non_copy_unpacker : public tcp::i_unpacker<basic_buffer>
 {
 public:
 	non_copy_unpacker() {reset_state();}
@@ -271,7 +271,7 @@ private:
 
 //protocol: fixed lenght
 //non-copy
-class fixed_length_unpacker : public ascs::tcp::i_unpacker<basic_buffer>
+class fixed_length_unpacker : public tcp::i_unpacker<basic_buffer>
 {
 public:
 	fixed_length_unpacker() : _fixed_length(0) {}
@@ -304,7 +304,7 @@ private:
 };
 
 //protocol: [prefix] + body + suffix
-class prefix_suffix_unpacker : public ascs::tcp::i_unpacker<std::string>
+class prefix_suffix_unpacker : public tcp::i_unpacker<std::string>
 {
 public:
 	prefix_suffix_unpacker() {reset_state();}
@@ -420,7 +420,7 @@ private:
 };
 
 //protocol: stream (non-protocol)
-class stream_unpacker : public ascs::tcp::i_unpacker<std::string>
+class stream_unpacker : public tcp::i_unpacker<std::string>
 {
 public:
 	virtual void reset_state() {}
