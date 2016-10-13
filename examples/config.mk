@@ -1,6 +1,6 @@
 
 # If your compiler cannot find asio, please specify it explicitly like this:
-#asio_location = -I/usr/local/include/
+#ext_location = -I/path of asio/
 # asio.hpp and asio directory should be available in this place.
 
 cflag = -Wall -fexceptions -std=c++1y
@@ -15,7 +15,11 @@ endif
 cflag += -DASIO_STANDALONE -DASIO_HAS_STD_CHRONO
 # If your compiler detected duplicated 'shared_mutex' definition, please define ASCS_HAS_STD_SHARED_MUTEX macro:
 #cflag += -DASCS_HAS_STD_SHARED_MUTEX
-cflag += -pthread ${ext_cflag} ${asio_location} -I../../include/
+# If you want concurrent queue (https://github.com/cameron314/concurrentqueue), please define ASCS_HAS_CONCURRENT_QUEUE macro:
+#cflag += -DASCS_HAS_CONCURRENT_QUEUE
+# And guarantee header file concurrentqueue.h is reachable, for example, add its path to ext_location:
+#ext_location += -I/path of concurrent queue/
+cflag += -pthread ${ext_cflag} ${ext_location} -I../../include/
 lflag += -pthread ${ext_libs}
 
 target = ${dir}/${module}

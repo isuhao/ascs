@@ -5,7 +5,6 @@
 #define ASCS_CLEAR_OBJECT_INTERVAL	60
 #define ASCS_ENHANCED_STABILITY
 #define ASCS_WANT_MSG_SEND_NOTIFY
-#define ASCS_HAS_CONCURRENT_QUEUE
 #define ASCS_INPUT_QUEUE non_lock_queue
 //file_server / file_client is a responsive system, before file_server send each message (except talking message,
 //but file_server only receive talking message, not send talking message proactively), the previous message has been

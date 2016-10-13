@@ -7,7 +7,6 @@
 #define ASCS_REUSE_OBJECT //use objects pool
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 #define ASCS_MSG_BUFFER_SIZE 65536
-#define ASCS_HAS_CONCURRENT_QUEUE
 #define ASCS_INPUT_QUEUE non_lock_queue
 #define ASCS_INPUT_CONTAINER list
 //if pingpong_client only send message in on_msg() or on_msg_handle(), which means a responsive system, a real pingpong test,
