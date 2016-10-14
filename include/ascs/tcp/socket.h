@@ -120,7 +120,7 @@ protected:
 #endif
 				size_t size = 0;
 				typename super::in_msg msg;
-				auto end_time = super::statistic::now();
+				auto end_time = statistic::now();
 
 				typename super::in_container_type::lock_guard lock(this->send_msg_buffer);
 				while (this->send_msg_buffer.try_dequeue_(msg))
@@ -223,7 +223,7 @@ private:
 	{
 		if (!ec)
 		{
-			this->stat.send_time_sum += super::statistic::now() - last_send_msg.front().begin_time;
+			this->stat.send_time_sum += statistic::now() - last_send_msg.front().begin_time;
 			this->stat.send_byte_sum += bytes_transferred;
 			this->stat.send_msg_sum += last_send_msg.size();
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY

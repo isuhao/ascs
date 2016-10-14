@@ -92,9 +92,9 @@ class echo_server : public server_base<echo_socket>
 public:
 	echo_server(service_pump& service_pump_) : server_base(service_pump_) {}
 
-	echo_socket::statistic get_statistic()
+	statistic get_statistic()
 	{
-		echo_socket::statistic stat;
+		statistic stat;
 		do_something_to_all([&stat](const auto& item) {stat += item->get_statistic();});
 
 		return stat;
