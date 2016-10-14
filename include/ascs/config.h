@@ -45,6 +45,7 @@
  * Move container related classes and functions from st_asio_wrapper_base.h to st_asio_wrapper_container.h.
  * Improve efficiency in scenarios of low throughput like pingpong test.
  * Replaceable packer/unpacker now support replaceable_buffer (an alias of auto_buffer) and shared_buffer to be their message type.
+ * Move class statistic and obj_with_begin_time out of ascs::socket to reduce template tiers.
  *
  */
 
@@ -62,19 +63,25 @@
 #ifdef _MSC_VER
 	#define ASCS_SF "%Iu" //printing format for 'size_t'
 	static_assert(_MSC_VER >= 1900, "ascs need Visual C++ 14.0 or higher.");
+	#ifdef _HAS_SHARED_MUTEX
+	#define ASCS_HAS_STD_SHARED_MUTEX
+	#endif
 #elif defined(__GNUC__)
 	#define ASCS_SF "%zu" //printing format for 'size_t'
 	#ifdef __clang__
 		static_assert(__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 4), "ascs need Clang 3.4 or higher.");
 	#else
 		static_assert(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9), "ascs need GCC 4.9 or higher.");
-		#if __GNUC__ > 5
-		#define ASCS_HAS_STD_SHARED_MUTEX
+		#if __GNUC__ > 5 && __cplusplus <= 201402L
+		#warning your compiler maybe support c++17, please open it (-std=c++17), then ascs will be able to use std::shared_mutex.
 		#endif
+
 	#endif
 
 	#if !defined(__cplusplus) || __cplusplus <= 201103L
 		#error ascs at least need c++14.
+	#elif __cplusplus > 201402L //TBD
+	#define ASCS_HAS_STD_SHARED_MUTEX
 	#endif
 #else
 	#error ascs only support Visual C++, GCC and Clang.
