@@ -16,7 +16,7 @@ endif
 cflag += -DASIO_STANDALONE -DASIO_HAS_STD_CHRONO
 # If your compiler detected duplicated 'shared_mutex' definition, please define ASCS_HAS_STD_SHARED_MUTEX macro:
 #cflag += -DASCS_HAS_STD_SHARED_MUTEX
-# If you want concurrent queue (https://github.com/cameron314/concurrentqueue), please define ASCS_HAS_CONCURRENT_QUEUE macro:
+# If you used concurrent queue (https://github.com/cameron314/concurrentqueue), please define ASCS_HAS_CONCURRENT_QUEUE macro:
 #cflag += -DASCS_HAS_CONCURRENT_QUEUE
 # And guarantee header file concurrentqueue.h is reachable, for example, add its path to ext_location:
 #ext_location += -I/path of concurrent queue/

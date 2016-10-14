@@ -75,7 +75,6 @@
 		#if __GNUC__ > 5 && __cplusplus <= 201402L
 		#warning your compiler maybe support c++17, please open it (-std=c++17), then ascs will be able to use std::shared_mutex.
 		#endif
-
 	#endif
 
 	#if !defined(__cplusplus) || __cplusplus <= 201103L
