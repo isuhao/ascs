@@ -17,11 +17,13 @@
 
 namespace ascs { namespace udp {
 
-template <typename Packer, typename Unpacker, typename Socket = asio::ip::udp::socket>
-class socket_base : public socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>>
+template <typename Packer, typename Unpacker, typename Socket = asio::ip::udp::socket,
+	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename> class InContainer = ASCS_INPUT_CONTAINER,
+	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename> class OutContainer = ASCS_OUTPUT_CONTAINER>
+class socket_base : public socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InContainer, OutQueue, OutContainer>
 {
 protected:
-	typedef socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>> super;
+	typedef socket<Socket, Packer, Unpacker, udp_msg<typename Packer::msg_type>, udp_msg<typename Unpacker::msg_type>, InQueue, InContainer, OutQueue, OutContainer> super;
 
 public:
 	typedef udp_msg<typename Packer::msg_type> in_msg_type;
@@ -85,9 +87,9 @@ public:
 	//get or change the unpacker at runtime
 	//changing unpacker at runtime is not thread-safe, this operation can only be done in on_msg(), reset() or constructor, please pay special attention
 	//we can resolve this defect via mutex, but i think it's not worth, because this feature is not frequently used
-	std::shared_ptr<i_unpacker<typename Packer::msg_type>> inner_unpacker() {return unpacker_;}
-	std::shared_ptr<const i_unpacker<typename Packer::msg_type>> inner_unpacker() const {return unpacker_;}
-	void inner_unpacker(const std::shared_ptr<i_unpacker<typename Packer::msg_type>>& _unpacker_) {unpacker_ = _unpacker_;}
+	std::shared_ptr<i_unpacker<typename Unpacker::msg_type>> inner_unpacker() {return unpacker_;}
+	std::shared_ptr<const i_unpacker<typename Unpacker::msg_type>> inner_unpacker() const {return unpacker_;}
+	void inner_unpacker(const std::shared_ptr<i_unpacker<typename Unpacker::msg_type>>& _unpacker_) {unpacker_ = _unpacker_;}
 
 	using super::send_msg;
 	///////////////////////////////////////////////////
@@ -121,7 +123,7 @@ protected:
 	{
 		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty() && this->send_msg_buffer.try_dequeue(last_send_msg))
 		{
-			this->stat.send_delay_sum += super::statistic::now() - last_send_msg.begin_time;
+			this->stat.send_delay_sum += statistic::now() - last_send_msg.begin_time;
 
 			last_send_msg.restart();
 			std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
@@ -201,7 +203,7 @@ private:
 		{
 			assert(bytes_transferred == last_send_msg.size());
 
-			this->stat.send_time_sum += super::statistic::now() - last_send_msg.begin_time;
+			this->stat.send_time_sum += statistic::now() - last_send_msg.begin_time;
 			this->stat.send_byte_sum += bytes_transferred;
 			++this->stat.send_msg_sum;
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
@@ -222,13 +224,14 @@ private:
 		if (!do_send_msg())
 		{
 			this->sending = false;
-			this->send_msg(); //just make sure no pending msgs
+			if (!this->send_msg_buffer.empty())
+				this->send_msg(); //just make sure no pending msgs
 		}
 	}
 
 protected:
 	typename super::in_msg last_send_msg;
-	std::shared_ptr<i_unpacker<typename Packer::msg_type>> unpacker_;
+	std::shared_ptr<i_unpacker<typename Unpacker::msg_type>> unpacker_;
 	asio::ip::udp::endpoint peer_addr, local_addr;
 
 	std::shared_mutex shutdown_mutex;
