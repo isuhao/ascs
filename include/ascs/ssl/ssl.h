@@ -214,7 +214,7 @@ private:
 			this->stop_listen();
 	}
 
-	void handshake_handler(const asio::error_code& ec, typename st_ssl_server_base::object_ctype& client_ptr)
+	void handshake_handler(const asio::error_code& ec, typename server_base::object_ctype& client_ptr)
 	{
 		this->on_handshake(ec, client_ptr);
 		if (!ec && this->add_client(client_ptr))
