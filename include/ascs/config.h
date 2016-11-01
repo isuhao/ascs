@@ -35,17 +35,27 @@
  * Add a new packer--fixed_length_packer.
  * Add a new class--message_queue.
  *
- * 2016.10.16	version 1.3.1
+ * 2016.10.16	version 1.1.1
  * Support non-lock queue, it's totally not thread safe and lock-free, it can improve IO throughput with particular business.
  * Demonstrate how and when to use non-lock queue as the input and output message buffer.
  * Queues (and their internal containers) used as input and output message buffer are now configurable (by macros or template arguments).
  * New macros--ASCS_INPUT_QUEUE, ASCS_INPUT_CONTAINER, ASCS_OUTPUT_QUEUE and ASCS_OUTPUT_CONTAINER.
  * Drop macro ASCS_USE_CONCURRENT_QUEUE, rename macro ASCS_USE_CONCURRE to ASCS_HAS_CONCURRENT_QUEUE.
  * In contrast to non_lock_queue, split message_queue into lock_queue and lock_free_queue.
- * Move container related classes and functions from st_asio_wrapper_base.h to st_asio_wrapper_container.h.
+ * Move container related classes and functions from base.h to container.h.
  * Improve efficiency in scenarios of low throughput like pingpong test.
  * Replaceable packer/unpacker now support replaceable_buffer (an alias of auto_buffer) and shared_buffer to be their message type.
  * Move class statistic and obj_with_begin_time out of ascs::socket to reduce template tiers.
+ *
+ * 2016.1.1		version 1.1.2
+ * Fix bug: ascs::list cannot be moved properly via moving constructor.
+ * Use ASCS_DELAY_CLOSE instead of ASCS_ENHANCED_STABILITY macro to control delay close duration,
+ *  0 is an equivalent of defining ASCS_ENHANCED_STABILITY, other values keep the same meanings as before.
+ * Move ascs::socket::closing related logic to ascs::object.
+ * Make ascs::socket::id(uint_fast64_t) private to avoid changing IDs by users.
+ * Call close at the end of shutdown function, just for safety.
+ * Add move capture in lambda.
+ * Optimize lambda expressions.
  *
  */
 
@@ -56,8 +66,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10101	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.1.1"
+#define ASCS_VER		10102	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.2"
 
 //asio and compiler check
 #ifdef _MSC_VER
