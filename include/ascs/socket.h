@@ -76,7 +76,7 @@ public:
 	typename Socket::lowest_layer_type& lowest_layer() {return next_layer().lowest_layer();}
 	const typename Socket::lowest_layer_type& lowest_layer() const {return next_layer().lowest_layer();}
 
-	virtual bool obsoleted() {return !dispatching && !started() && !this->is_async_calling();}
+	virtual bool obsoleted() {return !dispatching && !started() && !is_async_calling();}
 
 	bool started() const {return started_;}
 	void start()
@@ -108,7 +108,7 @@ public:
 	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
 	bool suspend_send_msg() const {return paused_sending;}
 
-	//for a socket that has been shut down, resume message dispatching will not take effect for left messages.
+	//for a socket that has been shut down, resuming message dispatching will not take effect for left messages.
 	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend) && started()) dispatch_msg();}
 	bool suspend_dispatch_msg() const {return paused_dispatching;}
 

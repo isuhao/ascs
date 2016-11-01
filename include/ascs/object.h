@@ -71,7 +71,6 @@ protected:
 	bool async_calling;
 #endif
 
-protected:
 	asio::io_service& io_service_;
 };
 
