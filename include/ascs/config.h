@@ -124,19 +124,13 @@ static_assert(ASCS_MAX_MSG_NUM > 0, "message capacity must be bigger than zero."
 
 //after this duration, this socket can be freed from the heap or reused,
 //you must define this macro as a value, not just define it, the value means the duration, unit is second.
-//if macro ASCS_ENHANCED_STABILITY been defined, this macro will always be zero.
-#ifdef ASCS_ENHANCED_STABILITY
-#if defined(ASCS_DELAY_CLOSE) && ASCS_DELAY_CLOSE != 0
-#warning ASCS_DELAY_CLOSE will always be zero if ASCS_ENHANCED_STABILITY macro been defined.
-#endif
-#undef ASCS_DELAY_CLOSE
-#define ASCS_DELAY_CLOSE 0
-#else
+//a value equal to zero will cause ascs to use a mechanism to guarantee 100% safety when reusing or freeing this socket,
+//ascs will hook all async calls to avoid this socket to be reused or freed before all async calls finish
+//or been interrupted (of course, this mechanism will slightly impact efficiency).
 #ifndef ASCS_DELAY_CLOSE
-#define ASCS_DELAY_CLOSE	5 //seconds
+#define ASCS_DELAY_CLOSE	0 //seconds, guarantee 100% safety when reusing or freeing this socket
 #endif
-static_assert(ASCS_DELAY_CLOSE > 0, "ASCS_DELAY_CLOSE must be bigger than zero.");
-#endif
+static_assert(ASCS_DELAY_CLOSE >= 0, "delay close duration must be bigger than or equal to zero.");
 
 //full statistic include time consumption, or only numerable informations will be gathered
 //#define ASCS_FULL_STATISTIC

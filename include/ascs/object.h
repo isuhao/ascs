@@ -27,7 +27,7 @@ protected:
 public:
 	bool stopped() const {return io_service_.stopped();}
 
-#ifdef ASCS_ENHANCED_STABILITY
+#if 0 == ASCS_DELAY_CLOSE
 	template<typename F> void post(F&& handler) {io_service_.post([unused(this->async_call_indicator), handler(std::move(handler))]() {handler();});}
 	template<typename F> void post(const F& handler) {io_service_.post([unused(this->async_call_indicator), handler]() {handler();});}
 
@@ -43,6 +43,7 @@ public:
 
 	bool is_async_calling() const {return !async_call_indicator.unique();}
 	bool is_last_async_call() const {return async_call_indicator.use_count() <= 2;} //can only be called in callbacks
+	inline void set_async_calling(bool) {}
 
 protected:
 	void reset() {async_call_indicator = std::make_shared<char>('\0');}
@@ -59,11 +60,15 @@ protected:
 	template<typename F> inline F&& make_handler_error_size(F&& f) const {return std::move(f);}
 	template<typename F> inline const F& make_handler_error_size(const F& f) const {return f;}
 
-	bool is_async_calling() const {return false;}
-	bool is_last_async_call() const {return true;}
+	inline bool is_async_calling() const {return async_calling;}
+	inline bool is_last_async_call() const {return true;}
+	inline void set_async_calling(bool value) {async_calling = value;}
 
 protected:
-	void reset() {}
+	void reset() {set_async_calling(false);}
+
+protected:
+	bool async_calling;
 #endif
 
 protected:

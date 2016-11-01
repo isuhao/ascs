@@ -55,9 +55,6 @@ protected:
 
 		sending = paused_sending = false;
 		dispatching = paused_dispatching = congestion_controlling = false;
-#ifndef ASCS_ENHANCED_STABILITY
-		closing = false;
-#endif
 //		started_ = false;
 	}
 
@@ -79,14 +76,7 @@ public:
 	typename Socket::lowest_layer_type& lowest_layer() {return next_layer().lowest_layer();}
 	const typename Socket::lowest_layer_type& lowest_layer() const {return next_layer().lowest_layer();}
 
-	virtual bool obsoleted()
-	{
-#ifndef ASCS_ENHANCED_STABILITY
-		return started() || closing || this->is_async_calling() ? false : recv_msg_buffer.empty() && recv_msg_buffer.idle();
-#else
-		return !started() && !this->is_async_calling();
-#endif
-	}
+	virtual bool obsoleted() {return !dispatching && !started() && !this->is_async_calling();}
 
 	bool started() const {return started_;}
 	void start()
@@ -118,7 +108,8 @@ public:
 	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
 	bool suspend_send_msg() const {return paused_sending;}
 
-	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) dispatch_msg();}
+	//for a socket that has been shut down, resume message dispatching will not take effect for left messages.
+	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend) && started()) dispatch_msg();}
 	bool suspend_dispatch_msg() const {return paused_dispatching;}
 
 	void congestion_control(bool enable) {congestion_controlling = enable; unified_out::warning_out("%s congestion control.", enable ? "open" : "close");}
@@ -164,10 +155,10 @@ protected:
 	virtual void on_send_error(const asio::error_code& ec) {unified_out::error_out("send msg error (%d %s)", ec.value(), ec.message().data());}
 	//receiving error or peer endpoint quit(false ec means ok)
 	virtual void on_recv_error(const asio::error_code& ec) = 0;
-	//if ASCS_ENHANCED_STABILITY macro been defined, in this callback, socket guarantee that there's no any async call associated it,
-	//include user timers(created by set_timer()) and user async calls(started via post()),
-	//this means you can clean up any resource in this socket except this socket itself, because this socket maybe is being maintained by object_pool.
-	//if ASCS_ENHANCED_STABILITY macro not defined, socket simply call this callback ASCS_DELAY_CLOSE seconds later after link down, no any guarantees.
+	//if ASCS_DELAY_CLOSE is equal to zero, in this callback, socket guarantee that there's no any other async call associated it,
+	// include user timers(created by set_timer()) and user async calls(started via post()), this means you can clean up any resource
+	// in this socket except this socket itself, because this socket maybe is being maintained by object_pool.
+	//otherwise (bigger than zero), socket simply call this callback ASCS_DELAY_CLOSE seconds later after link down, no any guarantees.
 	virtual void on_close() {unified_out::info_out("on_close()");}
 
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
@@ -206,9 +197,7 @@ protected:
 	{
 		if (is_closable())
 		{
-#ifndef ASCS_ENHANCED_STABILITY
-			closing = true;
-#endif
+			set_async_calling(true);
 			set_timer(TIMER_DELAY_CLOSE, ASCS_DELAY_CLOSE * 1000 + 50, [this](auto id)->bool {return this->timer_handler(id);});
 		}
 	}
@@ -331,9 +320,8 @@ private:
 				lowest_layer().close(ec);
 			}
 			on_close();
-#ifndef ASCS_ENHANCED_STABILITY
-			closing = false;
-#endif
+			set_async_calling(false);
+
 			break;
 		default:
 			assert(false);
@@ -388,9 +376,6 @@ protected:
 	std::shared_mutex send_mutex;
 	bool dispatching, paused_dispatching, congestion_controlling;
 	std::shared_mutex dispatch_mutex;
-#ifndef ASCS_ENHANCED_STABILITY
-	bool closing;
-#endif
 
 	bool started_; //has started or not
 	std::shared_mutex start_mutex;
