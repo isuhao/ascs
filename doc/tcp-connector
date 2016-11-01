@@ -1,4 +1,4 @@
-
+﻿
 namespace ascs { namespace tcp {
 
 带连接功能的tcp::socket_base，算是一个真正的客户端了
