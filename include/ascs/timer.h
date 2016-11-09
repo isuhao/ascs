@@ -116,6 +116,7 @@ public:
 			return false;
 		lock.unlock();
 
+		iter->status = timer_info::TIMER_OK;
 		start_timer(*iter);
 		return true;
 	}
@@ -143,6 +144,8 @@ protected:
 
 	void start_timer(timer_cinfo& ti)
 	{
+		assert(timer_info::TIMER_OK == ti.status);
+
 		ti.timer->expires_from_now(milliseconds(ti.milliseconds));
 		//return true from call_back to continue the timer, or the timer will stop
 		ti.timer->async_wait(make_handler_error([this, &ti](const auto& ec) {if (!ec && ti.call_back(ti.id) && timer_info::TIMER_OK == ti.status) this->start_timer(ti);}));
@@ -150,9 +153,12 @@ protected:
 
 	void stop_timer(timer_cinfo& ti)
 	{
-		asio::error_code ec;
-		ti.timer->cancel(ec);
-		ti.status = timer_info::TIMER_CANCELED;
+		if (timer_info::TIMER_OK == ti.status) //enable stopping timers which has been stopped
+		{
+			asio::error_code ec;
+			ti.timer->cancel(ec);
+			ti.status = timer_info::TIMER_CANCELED;
+		}
 	}
 
 	container_type timer_can;

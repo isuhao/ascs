@@ -176,8 +176,6 @@ protected:
 
 		shutdown_state = shutdown_states::FORCE;
 		this->stop_all_timer();
-		this->started_ = false;
-//		reset_state();
 
 		if (this->lowest_layer().is_open())
 		{
