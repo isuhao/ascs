@@ -116,7 +116,9 @@ public:
 			return false;
 		lock.unlock();
 
+		//items in timer_can not locked
 		iter->status = timer_info::TIMER_OK;
+
 		start_timer(*iter);
 		return true;
 	}
@@ -153,7 +155,7 @@ protected:
 
 	void stop_timer(timer_cinfo& ti)
 	{
-		if (timer_info::TIMER_OK == ti.status) //enable stopping timers which has been stopped
+		if (timer_info::TIMER_OK == ti.status) //enable stopping timers that has been stopped
 		{
 			asio::error_code ec;
 			ti.timer->cancel(ec);
