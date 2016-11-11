@@ -64,6 +64,8 @@
  *
  * 2016.xx.xx	version 1.1.3
  * Introduce lock-free mechanism for some appropriate logics (many requesters, only one can succeed, others will fail rather than wait).
+ * Remove all mutex (except mutex in object_pool, service_pump, lock_queue and udp::socket).
+ * Sharply simplified timer class.
  *
  */
 
@@ -74,8 +76,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10102	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.1.2"
+#define ASCS_VER		10103	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.3"
 
 //asio and compiler check
 #ifdef _MSC_VER
