@@ -168,7 +168,7 @@ private:
 	void id(uint_fast64_t id);
 设置id，注意使用者不可设置id，只有socket的创建者（object_pool或者其继承者）才可设置id，除非这个socket没有被任何对象池管理。
 
-	bool timer_handler(unsigned char id);
+	bool timer_handler(timer::tid id);
 处理所有定时器
 
 	void msg_handler();
