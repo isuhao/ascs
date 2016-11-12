@@ -13,8 +13,6 @@
 #ifndef _ASCS_TCP_SOCKET_H_
 #define _ASCS_TCP_SOCKET_H_
 
-#include <vector>
-
 #include "../socket.h"
 
 namespace ascs { namespace tcp {
