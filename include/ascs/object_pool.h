@@ -14,10 +14,10 @@
 #ifndef _ASCS_OBJECT_POOL_H_
 #define _ASCS_OBJECT_POOL_H_
 
-#include <atomic>
 #include <unordered_map>
 
 #include "timer.h"
+#include "container.h"
 #include "service_pump.h"
 
 namespace ascs

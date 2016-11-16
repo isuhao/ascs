@@ -13,7 +13,6 @@
 #ifndef _ASCS_SOCKET_H_
 #define _ASCS_SOCKET_H_
 
-#include "base.h"
 #include "timer.h"
 
 namespace ascs
@@ -374,7 +373,7 @@ protected:
 
 	in_container_type send_msg_buffer;
 	out_container_type recv_msg_buffer;
-	list<out_msg> temp_msg_buffer;
+	std::list<out_msg> temp_msg_buffer; //the size of this list is always very small, so std::list is enough (std::list::size maybe has linear complexity)
 	//subclass will invoke handle_msg() when got some msgs. if these msgs can't be pushed into recv_msg_buffer because of:
 	// 1. msg dispatching suspended;
 	// 2. congestion control opened;

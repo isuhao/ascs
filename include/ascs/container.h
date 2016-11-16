@@ -14,7 +14,6 @@
 #define _ASCS_CONTAINER_H_
 
 #include <list>
-#include <shared_mutex>
 
 #include "config.h"
 
@@ -193,80 +192,6 @@ public:
 
 template<typename T, typename Container> using non_lock_queue = queue<T, Container, dummy_lockable>; //totally not thread safe
 template<typename T, typename Container> using lock_queue = queue<T, Container, lockable>;
-
-//it's not thread safe for 'other', please note. for 'dest', depends on 'Q'
-template<typename Q>
-size_t move_items_in(Q& dest, Q& other, size_t max_size = ASCS_MAX_MSG_NUM)
-{
-	if (other.empty())
-		return 0;
-
-	auto cur_size = dest.size();
-	if (cur_size >= max_size)
-		return 0;
-
-	size_t num = 0;
-	typename Q::data_type item;
-
-	typename Q::lock_guard lock(dest);
-	while (cur_size < max_size && other.try_dequeue_(item)) //size not controlled accurately
-	{
-		dest.enqueue_(std::move(item));
-		++cur_size;
-		++num;
-	}
-
-	return num;
-}
-
-//it's not thread safe for 'other', please note. for 'dest', depends on 'Q'
-template<typename Q, typename Q2>
-size_t move_items_in(Q& dest, Q2& other, size_t max_size = ASCS_MAX_MSG_NUM)
-{
-	if (other.empty())
-		return 0;
-
-	auto cur_size = dest.size();
-	if (cur_size >= max_size)
-		return 0;
-
-	size_t num = 0;
-
-	typename Q::lock_guard lock(dest);
-	while (cur_size < max_size && !other.empty()) //size not controlled accurately
-	{
-		dest.enqueue_(std::move(other.front()));
-		other.pop_front();
-		++cur_size;
-		++num;
-	}
-
-	return num;
-}
-
-template<typename _Can>
-bool splice_helper(_Can& dest_can, _Can& src_can, size_t max_size = ASCS_MAX_MSG_NUM)
-{
-	if (src_can.empty())
-		return false;
-
-	auto size = dest_can.size();
-	if (size >= max_size) //dest_can can hold more items.
-		return false;
-
-	size = max_size - size; //maximum items this time can handle
-	if (src_can.size() > size) //some items left behind
-	{
-		auto begin_iter = std::begin(src_can);
-		auto left_size = src_can.size() - size;
-		auto end_iter = left_size > size ? std::next(begin_iter, size) : std::prev(std::end(src_can), left_size); //minimize iterator movement
-		dest_can.splice(std::end(dest_can), src_can, begin_iter, end_iter);
-	}
-	else
-		dest_can.splice(std::end(dest_can), src_can);
-
-	return true;
-}
 
 } //namespace
 

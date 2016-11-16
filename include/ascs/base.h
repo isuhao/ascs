@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include <list>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
@@ -24,9 +26,8 @@
 #include <iomanip>
 
 #include <asio.hpp>
-#include <asio/detail/noncopyable.hpp>
 
-#include "container.h"
+#include "config.h"
 
 namespace ascs
 {
@@ -179,7 +180,7 @@ namespace tcp
 	public:
 		typedef MsgType msg_type;
 		typedef const msg_type msg_ctype;
-		typedef list<msg_type> container_type;
+		typedef std::list<msg_type> container_type;
 
 	protected:
 		virtual ~i_unpacker() {}
@@ -213,7 +214,7 @@ namespace udp
 	public:
 		typedef MsgType msg_type;
 		typedef const msg_type msg_ctype;
-		typedef list<udp_msg<msg_type>> container_type;
+		typedef std::list<udp_msg<msg_type>> container_type;
 
 	protected:
 		virtual ~i_unpacker() {}
@@ -357,6 +358,80 @@ void do_something_to_one(_Can& __can, _Mutex& __mutex, const _Predicate& __pred)
 
 template<typename _Can, typename _Predicate>
 void do_something_to_one(_Can& __can, const _Predicate& __pred) {for (auto iter = std::begin(__can); iter != std::end(__can); ++iter) if (__pred(*iter)) break;}
+
+//it's not thread safe for 'other', please note. for 'dest', depends on 'Q'
+template<typename Q>
+size_t move_items_in(Q& dest, Q& other, size_t max_size = ASCS_MAX_MSG_NUM)
+{
+	if (other.empty())
+		return 0;
+
+	auto cur_size = dest.size();
+	if (cur_size >= max_size)
+		return 0;
+
+	size_t num = 0;
+	typename Q::data_type item;
+
+	typename Q::lock_guard lock(dest);
+	while (cur_size < max_size && other.try_dequeue_(item)) //size not controlled accurately
+	{
+		dest.enqueue_(std::move(item));
+		++cur_size;
+		++num;
+	}
+
+	return num;
+}
+
+//it's not thread safe for 'other', please note. for 'dest', depends on 'Q'
+template<typename Q, typename Q2>
+size_t move_items_in(Q& dest, Q2& other, size_t max_size = ASCS_MAX_MSG_NUM)
+{
+	if (other.empty())
+		return 0;
+
+	auto cur_size = dest.size();
+	if (cur_size >= max_size)
+		return 0;
+
+	size_t num = 0;
+
+	typename Q::lock_guard lock(dest);
+	while (cur_size < max_size && !other.empty()) //size not controlled accurately
+	{
+		dest.enqueue_(std::move(other.front()));
+		other.pop_front();
+		++cur_size;
+		++num;
+	}
+
+	return num;
+}
+
+template<typename _Can>
+bool splice_helper(_Can& dest_can, _Can& src_can, size_t max_size = ASCS_MAX_MSG_NUM)
+{
+	if (src_can.empty())
+		return false;
+
+	auto size = dest_can.size();
+	if (size >= max_size) //dest_can can hold more items.
+		return false;
+
+	size = max_size - size; //maximum items this time can handle
+	if (src_can.size() > size) //some items left behind
+	{
+		auto begin_iter = std::begin(src_can);
+		auto left_size = src_can.size() - size;
+		auto end_iter = left_size > size ? std::next(begin_iter, size) : std::prev(std::end(src_can), left_size); //minimize iterator movement
+		dest_can.splice(std::end(dest_can), src_can, begin_iter, end_iter);
+	}
+	else
+		dest_can.splice(std::end(dest_can), src_can);
+
+	return true;
+}
 
 //member functions, used to do something to any member container(except map and multimap) optionally with any member mutex
 #define DO_SOMETHING_TO_ALL_MUTEX(CAN, MUTEX) DO_SOMETHING_TO_ALL_MUTEX_NAME(do_something_to_all, CAN, MUTEX)

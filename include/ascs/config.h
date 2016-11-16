@@ -83,6 +83,7 @@
 #ifdef _MSC_VER
 	#define ASCS_SF "%Iu" //printing format for 'size_t'
 	static_assert(_MSC_VER >= 1900, "ascs need Visual C++ 14.0 or higher.");
+	#include <shared_mutex> //include this after compiler checking, this will gave user a more useful error message.
 	#ifdef _HAS_SHARED_MUTEX
 	#define ASCS_HAS_STD_SHARED_MUTEX
 	#endif
@@ -102,6 +103,7 @@
 	#elif __cplusplus > 201402L //TBD
 	#define ASCS_HAS_STD_SHARED_MUTEX
 	#endif
+	#include <shared_mutex> //include this after compiler checking, this will gave user a more useful error message.
 #else
 	#error ascs only support Visual C++, GCC and Clang.
 #endif
