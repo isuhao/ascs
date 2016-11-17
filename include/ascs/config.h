@@ -12,7 +12,7 @@
  * license: www.boost.org/LICENSE_1_0.txt
  *
  * Known issues:
- * 1. concurrentqueue is not a FIFO (it is by design), navigate to the following links for more deatils:
+ * 1. concurrentqueue is not a FIFO queue (it is by design), navigate to the following links for more deatils:
  *  https://github.com/cameron314/concurrentqueue/issues/6
  *  https://github.com/cameron314/concurrentqueue/issues/52
  *

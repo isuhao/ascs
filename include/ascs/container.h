@@ -13,9 +13,7 @@
 #ifndef _ASCS_CONTAINER_H_
 #define _ASCS_CONTAINER_H_
 
-#include <list>
-
-#include "config.h"
+#include "base.h"
 
 namespace ascs
 {
@@ -89,6 +87,17 @@ public:
 	const_iterator end() const {return impl.end();}
 	const_reverse_iterator rend() const {return impl.rend();}
 
+	void splice(const_iterator _Where, _Mybase& _Right) {s += _Right.size(); impl.splice(_Where, _Right);}
+	void splice(const_iterator _Where, _Mybase& _Right, const_iterator _First) {++s; impl.splice(_Where, _Right, _First);}
+	void splice(const_iterator _Where, _Mybase& _Right, const_iterator _First, const_iterator _Last)
+	{
+		auto size = std::distance(_First, _Last);
+		//this std::distance invocation is the penalty for making complexity of size() constant.
+		s += size;
+
+		impl.splice(_Where, _Right, _First, _Last);
+	}
+
 	void splice(const_iterator _Where, _Myt& _Right) {s += _Right.size(); _Right.s = 0; impl.splice(_Where, _Right.impl);}
 	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First) {++s; --_Right.s; impl.splice(_Where, _Right.impl, _First);}
 	void splice(const_iterator _Where, _Myt& _Right, const_iterator _First, const_iterator _Last)
@@ -155,8 +164,11 @@ public:
 	//not thread-safe
 	void clear() {super(std::move(*this));}
 
+	void move_items_in(std::list<T>& can) {move_items_in_(can);}
+
 	bool enqueue_(const T& item) {return this->enqueue(item);}
 	bool enqueue_(T&& item) {return this->enqueue(std::move(item));}
+	void move_items_in_(std::list<T>& can) {do_something_to_all(can, [this](auto& item) {this->enqueue(std::move(item));}); can.clear();}
 	bool try_dequeue_(T& item) {return this->try_dequeue(item);}
 };
 
@@ -168,6 +180,7 @@ public:
 // swap
 // push_back(const T& item)
 // push_back(T&& item)
+// splice(Container::const_iterator, std::list<T>&), after this, std::list<T> must be empty
 // front
 // pop_front
 template<typename T, typename Container, typename Lockable>
@@ -183,10 +196,12 @@ public:
 
 	bool enqueue(const T& item) {typename Lockable::lock_guard lock(*this); return enqueue_(item);}
 	bool enqueue(T&& item) {typename Lockable::lock_guard lock(*this); return enqueue_(std::move(item));}
+	void move_items_in(std::list<T>& can) {typename Lockable::lock_guard lock(*this); move_items_in_(can);}
 	bool try_dequeue(T& item) {typename Lockable::lock_guard lock(*this); return try_dequeue_(item);}
 
 	bool enqueue_(const T& item) {this->push_back(item); return true;}
 	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
+	void move_items_in_(std::list<T>& can) {this->splice(std::end(*this), can);}
 	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
 };
 
