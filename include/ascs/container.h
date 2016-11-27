@@ -31,6 +31,7 @@ public:
 	typedef list<_Ty> _Myt;
 	typedef std::list<_Ty> _Mybase;
 
+	typedef typename _Mybase::value_type value_type;
 	typedef typename _Mybase::size_type size_type;
 
 	typedef typename _Mybase::reference reference;
