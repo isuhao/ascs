@@ -50,13 +50,13 @@ private:
 };
 
 class service_pump;
-class timer;
+class object;
 class i_server
 {
 public:
 	virtual service_pump& get_service_pump() = 0;
 	virtual const service_pump& get_service_pump() const = 0;
-	virtual bool del_client(const std::shared_ptr<timer>& client_ptr) = 0;
+	virtual bool del_client(const std::shared_ptr<object>& client_ptr) = 0;
 };
 
 class i_buffer
