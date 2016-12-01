@@ -403,6 +403,7 @@ public:
 		auto data_len = remain_len + bytes_transferred;
 		assert(data_len <= ASCS_MSG_BUFFER_SIZE);
 
+		auto_duration dur(*this->duration);
 		return peek_msg(data_len, &*std::begin(raw_buff));
 	}
 

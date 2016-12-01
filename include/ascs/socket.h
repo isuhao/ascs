@@ -117,6 +117,11 @@ public:
 	void congestion_control(bool enable) {congestion_controlling = enable; unified_out::warning_out("%s congestion control.", enable ? "open" : "close");}
 	bool congestion_control() const {return congestion_controlling;}
 
+	//in ascs, it's thread safe to access stat without mutex, because for a specific member of stat, ascs will never access it concurrently.
+	//in other words, in a specific thread, ascs just access only one member of stat.
+	//but user can access stat out of ascs via get_statistic function, although user can only read it, there's still a potential risk,
+	//so whether it's thread safe or not depends on std::chrono::system_clock::duration.
+	//i can make it thread safe in ascs, but is it worth to do so? this is a problem.
 	const struct statistic& get_statistic() const {return stat;}
 
 	//get or change the packer at runtime
@@ -194,7 +199,7 @@ protected:
 	virtual void on_all_msg_send(InMsgType& msg) {}
 #endif
 
-	//subclass notify socket the shutdown event, not thread safe
+	//subclass notify shutdown event, not thread safe
 	void close()
 	{
 		if (started_)
@@ -217,14 +222,12 @@ protected:
 		decltype(temp_msg_buffer) temp_buffer;
 		if (!temp_msg_buffer.empty() && !paused_dispatching && !congestion_controlling)
 		{
-			auto begin_time = statistic::now();
+			auto_duration(stat.handle_time_1_sum);
 			for (auto iter = std::begin(temp_msg_buffer); !paused_dispatching && !congestion_controlling && iter != std::end(temp_msg_buffer);)
 				if (on_msg(*iter))
 					temp_msg_buffer.erase(iter++);
 				else
 					temp_buffer.splice(std::end(temp_buffer), temp_msg_buffer, iter++);
-
-			stat.handle_time_1_sum += statistic::now() - begin_time;
 		}
 #else
 		auto temp_buffer(std::move(temp_msg_buffer));
@@ -240,7 +243,7 @@ protected:
 			do_recv_msg(); //receive msg sequentially, which means second receiving only after first receiving success
 		else
 		{
-			recv_idle_begin_time = statistic::now();
+			recv_idle_begin_time = stat_info::now();
 			set_timer(TIMER_HANDLE_MSG, 50, [this](auto id)->bool {return this->timer_handler(id);});
 		}
 	}
@@ -315,7 +318,7 @@ private:
 		switch (id)
 		{
 		case TIMER_HANDLE_MSG:
-			stat.recv_idle_sum += statistic::now() - recv_idle_begin_time;
+			stat.recv_idle_sum += stat_info::now() - recv_idle_begin_time;
 			handle_msg();
 			break;
 		case TIMER_DISPATCH_MSG:
@@ -343,10 +346,10 @@ private:
 
 	void msg_handler()
 	{
-		auto begin_time = statistic::now();
+		auto begin_time = stat_info::now();
 		stat.dispatch_dealy_sum += begin_time - last_dispatch_msg.begin_time;
 		bool re = on_msg_handle(last_dispatch_msg, false); //must before next msg dispatching to keep sequence
-		auto end_time = statistic::now();
+		auto end_time = stat_info::now();
 		stat.handle_time_2_sum += end_time - begin_time;
 
 		if (!re) //dispatch failed, re-dispatch
@@ -391,7 +394,7 @@ protected:
 	std::atomic_size_t start_atomic;
 
 	struct statistic stat;
-	typename statistic::stat_time recv_idle_begin_time;
+	typename stat_info::stat_time recv_idle_begin_time;
 };
 
 } //namespace

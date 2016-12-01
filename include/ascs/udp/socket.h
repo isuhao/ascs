@@ -124,7 +124,7 @@ protected:
 	{
 		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty() && this->send_msg_buffer.try_dequeue(last_send_msg))
 		{
-			this->stat.send_delay_sum += statistic::now() - last_send_msg.begin_time;
+			this->stat.send_delay_sum += stat_info::now() - last_send_msg.begin_time;
 
 			last_send_msg.restart();
 			std::shared_lock<std::shared_mutex> lock(shutdown_mutex);
@@ -203,7 +203,7 @@ private:
 		{
 			assert(bytes_transferred == last_send_msg.size());
 
-			this->stat.send_time_sum += statistic::now() - last_send_msg.begin_time;
+			this->stat.send_time_sum += stat_info::now() - last_send_msg.begin_time;
 			this->stat.send_byte_sum += bytes_transferred;
 			++this->stat.send_msg_sum;
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY

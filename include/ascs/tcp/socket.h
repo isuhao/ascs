@@ -38,10 +38,10 @@ protected:
 
 	enum shutdown_states {NONE, FORCE, GRACEFUL};
 
-	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()),
-		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {}
-	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()),
-		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {}
+	socket_base(asio::io_service& io_service_) : super(io_service_),
+		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {inner_unpacker(std::make_shared<Unpacker>());}
+	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg),
+		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {inner_unpacker(std::make_shared<Unpacker>());}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
@@ -61,7 +61,7 @@ public:
 	//we can resolve this defect via mutex, but i think it's not worth, because this feature is not frequently used
 	std::shared_ptr<i_unpacker<out_msg_type>> inner_unpacker() {return unpacker_;}
 	std::shared_ptr<const i_unpacker<out_msg_type>> inner_unpacker() const {return unpacker_;}
-	void inner_unpacker(const std::shared_ptr<i_unpacker<out_msg_type>>& _unpacker_) {unpacker_ = _unpacker_;}
+	void inner_unpacker(const std::shared_ptr<i_unpacker<out_msg_type>>& _unpacker_) {unpacker_ = _unpacker_; unpacker_->set_stat(&this->stat.unpack_time_sum);}
 
 	using super::send_msg;
 	///////////////////////////////////////////////////
@@ -122,7 +122,7 @@ protected:
 #endif
 				size_t size = 0;
 				typename super::in_msg msg;
-				auto end_time = statistic::now();
+				auto end_time = stat_info::now();
 
 				typename super::in_container_type::lock_guard lock(this->send_msg_buffer);
 				while (this->send_msg_buffer.try_dequeue_(msg))
@@ -196,7 +196,11 @@ private:
 		if (!ec && bytes_transferred > 0)
 		{
 			typename Unpacker::container_type temp_msg_can;
-			auto unpack_ok = unpacker_->parse_msg(bytes_transferred, temp_msg_can);
+			bool unpack_ok;
+			{
+				auto_duration dur(this->stat.unpack_time_sum);
+				unpack_ok = unpacker_->parse_msg(bytes_transferred, temp_msg_can);
+			}
 			auto msg_num = temp_msg_can.size();
 			if (msg_num > 0)
 			{
@@ -226,7 +230,7 @@ private:
 	{
 		if (!ec)
 		{
-			this->stat.send_time_sum += statistic::now() - last_send_msg.front().begin_time;
+			this->stat.send_time_sum += stat_info::now() - last_send_msg.front().begin_time;
 			this->stat.send_byte_sum += bytes_transferred;
 			this->stat.send_msg_sum += last_send_msg.size();
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
