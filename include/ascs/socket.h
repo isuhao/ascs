@@ -243,7 +243,7 @@ protected:
 			do_recv_msg(); //receive msg sequentially, which means second receiving only after first receiving success
 		else
 		{
-			recv_idle_begin_time = stat_info::now();
+			recv_idle_begin_time = statistic::now();
 			set_timer(TIMER_HANDLE_MSG, 50, [this](auto id)->bool {return this->timer_handler(id);});
 		}
 	}
@@ -318,7 +318,7 @@ private:
 		switch (id)
 		{
 		case TIMER_HANDLE_MSG:
-			stat.recv_idle_sum += stat_info::now() - recv_idle_begin_time;
+			stat.recv_idle_sum += statistic::now() - recv_idle_begin_time;
 			handle_msg();
 			break;
 		case TIMER_DISPATCH_MSG:
@@ -346,10 +346,10 @@ private:
 
 	void msg_handler()
 	{
-		auto begin_time = stat_info::now();
+		auto begin_time = statistic::now();
 		stat.dispatch_dealy_sum += begin_time - last_dispatch_msg.begin_time;
 		bool re = on_msg_handle(last_dispatch_msg, false); //must before next msg dispatching to keep sequence
-		auto end_time = stat_info::now();
+		auto end_time = statistic::now();
 		stat.handle_time_2_sum += end_time - begin_time;
 
 		if (!re) //dispatch failed, re-dispatch
@@ -394,7 +394,7 @@ protected:
 	std::atomic_size_t start_atomic;
 
 	struct statistic stat;
-	typename stat_info::stat_time recv_idle_begin_time;
+	typename statistic::stat_time recv_idle_begin_time;
 };
 
 } //namespace

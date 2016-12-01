@@ -137,42 +137,6 @@ protected:
 };
 //not like auto_buffer, shared_buffer is copyable, but auto_buffer is a bit more efficient.
 
-#ifdef ASCS_FULL_STATISTIC
-struct stat_info
-{
-	typedef std::chrono::system_clock::time_point stat_time;
-	static stat_time now() {return std::chrono::system_clock::now();}
-	typedef std::chrono::system_clock::duration stat_duration;
-};
-#else
-struct stat_info
-{
-	struct dummy_duration
-	{
-		dummy_duration() {}
-		dummy_duration(int) {}
-
-		const dummy_duration& operator +=(const dummy_duration& other) {return *this;}
-	}; //not a real duration, just satisfy compiler(d1 += d2)
-	struct dummy_time {dummy_duration operator -(const dummy_time& other) {return dummy_duration();}}; //not a real time, just satisfy compiler(t1 - t2)
-
-	typedef dummy_time stat_time;
-	static stat_time now() {return stat_time();}
-	typedef dummy_duration stat_duration;
-};
-#endif
-
-class auto_duration
-{
-public:
-	auto_duration(typename stat_info::stat_duration& duration_) : begin_time(stat_info::now()), duration(duration_) {}
-	~auto_duration() {duration += stat_info::now() - begin_time;}
-
-private:
-	typename stat_info::stat_time begin_time;
-	typename stat_info::stat_duration& duration;
-};
-
 //packer concept
 template<typename MsgType>
 class i_packer
@@ -219,21 +183,13 @@ namespace tcp
 		typedef std::list<msg_type> container_type;
 
 	protected:
-		i_unpacker() : duration(nullptr) {}
 		virtual ~i_unpacker() {}
-
-		//only one operation can be performed on this, which is increasement,
-		//and only one place we can performe the operation in it, which is completion_condition,
-		//please keep in mind.
-		stat_info::stat_duration* duration;
 
 	public:
 		virtual void reset_state() = 0;
 		virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can) = 0;
 		virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) = 0;
 		virtual asio::mutable_buffers_1 prepare_next_recv() = 0;
-
-		void set_stat(stat_info::stat_duration* duration_) {duration = duration_;}
 	};
 } //namespace
 
@@ -273,21 +229,37 @@ namespace udp
 
 struct statistic
 {
+#ifdef ASCS_FULL_STATISTIC
+	typedef std::chrono::system_clock::time_point stat_time;
+	static stat_time now() {return std::chrono::system_clock::now();}
+	typedef std::chrono::system_clock::duration stat_duration;
+#else
+	struct dummy_duration {const dummy_duration& operator +=(const dummy_duration& other) {return *this;}}; //not a real duration, just satisfy compiler(d1 += d2)
+	struct dummy_time {dummy_duration operator -(const dummy_time& other) {return dummy_duration();}}; //not a real time, just satisfy compiler(t1 - t2)
+
+	typedef dummy_time stat_time;
+	static stat_time now() {return stat_time();}
+	typedef dummy_duration stat_duration;
+#endif
 	statistic() {reset();}
 
 	void reset_number() {send_msg_sum = send_byte_sum = 0; recv_msg_sum = recv_byte_sum = 0;}
+#ifdef ASCS_FULL_STATISTIC
+	void reset() {reset_number(); reset_duration();}
 	void reset_duration()
 	{
-		send_delay_sum = send_time_sum = pack_time_sum = stat_info::stat_duration(0);
+		send_delay_sum = send_time_sum = pack_time_sum = stat_duration(0);
 
-		dispatch_dealy_sum = recv_idle_sum = stat_info::stat_duration(0);
+		dispatch_dealy_sum = recv_idle_sum = stat_duration(0);
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-		handle_time_1_sum = stat_info::stat_duration(0);
+		handle_time_1_sum = stat_duration(0);
 #endif
-		handle_time_2_sum = stat_info::stat_duration(0);
-		unpack_time_sum = stat_info::stat_duration(0);
+		handle_time_2_sum = stat_duration(0);
+		unpack_time_sum = stat_duration(0);
 	}
-	void reset() {reset_number(); reset_duration();}
+#else
+	void reset() {reset_number();}
+#endif
 
 	statistic& operator +=(const struct statistic& other)
 	{
@@ -344,22 +316,33 @@ struct statistic
 	//send corresponding statistic
 	uint_fast64_t send_msg_sum; //not counted msgs in sending buffer
 	uint_fast64_t send_byte_sum; //not counted msgs in sending buffer
-	stat_info::stat_duration send_delay_sum; //from send_(native_)msg (exclude msg packing) to asio::async_write
-	stat_info::stat_duration send_time_sum; //from asio::async_write to send_handler
+	stat_duration send_delay_sum; //from send_(native_)msg (exclude msg packing) to asio::async_write
+	stat_duration send_time_sum; //from asio::async_write to send_handler
 	//above two items indicate your network's speed or load
-	stat_info::stat_duration pack_time_sum;
+	stat_duration pack_time_sum;
 
 	//recv corresponding statistic
 	uint_fast64_t recv_msg_sum; //include msgs in receiving buffer
 	uint_fast64_t recv_byte_sum; //include msgs in receiving buffer
-	stat_info::stat_duration dispatch_dealy_sum; //from parse_msg(exclude msg unpacking) to on_msg_handle
-	stat_info::stat_duration recv_idle_sum;
+	stat_duration dispatch_dealy_sum; //from parse_msg(exclude msg unpacking) to on_msg_handle
+	stat_duration recv_idle_sum;
 	//during this duration, socket suspended msg reception (receiving buffer overflow, msg dispatching suspended or doing congestion control)
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
-	stat_info::stat_duration handle_time_1_sum; //on_msg consumed time, this indicate the efficiency of msg handling
+	stat_duration handle_time_1_sum; //on_msg consumed time, this indicate the efficiency of msg handling
 #endif
-	stat_info::stat_duration handle_time_2_sum; //on_msg_handle consumed time, this indicate the efficiency of msg handling
-	stat_info::stat_duration unpack_time_sum;
+	stat_duration handle_time_2_sum; //on_msg_handle consumed time, this indicate the efficiency of msg handling
+	stat_duration unpack_time_sum;
+};
+
+class auto_duration
+{
+public:
+	auto_duration(typename statistic::stat_duration& duration_) : begin_time(statistic::now()), duration(duration_) {}
+	~auto_duration() {duration += statistic::now() - begin_time;}
+
+private:
+	typename statistic::stat_time begin_time;
+	typename statistic::stat_duration& duration;
 };
 
 template<typename T>
@@ -367,12 +350,12 @@ struct obj_with_begin_time : public T
 {
 	obj_with_begin_time() {restart();}
 	obj_with_begin_time(T&& msg) : T(std::move(msg)) {restart();}
-	void restart() {restart(stat_info::now());}
-	void restart(const typename stat_info::stat_time& begin_time_) {begin_time = begin_time_;}
+	void restart() {restart(statistic::now());}
+	void restart(const typename statistic::stat_time& begin_time_) {begin_time = begin_time_;}
 	using T::swap;
 	void swap(obj_with_begin_time& other) {T::swap(other); std::swap(begin_time, other.begin_time);}
 
-	typename stat_info::stat_time begin_time;
+	typename statistic::stat_time begin_time;
 };
 
 //free functions, used to do something to any container(except map and multimap) optionally with any mutex
