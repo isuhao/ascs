@@ -202,10 +202,14 @@ namespace udp
 		asio::ip::udp::endpoint peer_addr;
 
 		udp_msg() {}
+		udp_msg(const asio::ip::udp::endpoint& _peer_addr) : peer_addr(_peer_addr) {}
+		udp_msg(const asio::ip::udp::endpoint& _peer_addr, const MsgType& msg) : MsgType(msg), peer_addr(_peer_addr) {}
 		udp_msg(const asio::ip::udp::endpoint& _peer_addr, MsgType&& msg) : MsgType(std::move(msg)), peer_addr(_peer_addr) {}
 
+		using MsgType::operator =;
+		using MsgType::swap;
 		void swap(udp_msg& other) {std::swap(peer_addr, other.peer_addr); MsgType::swap(other);}
-		void swap(const asio::ip::udp::endpoint& addr, MsgType&& tmp_msg) {peer_addr = addr; MsgType::swap(tmp_msg);}
+		void swap(asio::ip::udp::endpoint& addr, MsgType&& tmp_msg) {std::swap(peer_addr, addr); MsgType::swap(tmp_msg);}
 	};
 
 	template<typename MsgType>
@@ -319,7 +323,7 @@ struct statistic
 	stat_duration send_delay_sum; //from send_(native_)msg (exclude msg packing) to asio::async_write
 	stat_duration send_time_sum; //from asio::async_write to send_handler
 	//above two items indicate your network's speed or load
-	stat_duration pack_time_sum;
+	stat_duration pack_time_sum; //udp::socket will not gather this item
 
 	//recv corresponding statistic
 	uint_fast64_t recv_msg_sum; //include msgs in receiving buffer
@@ -331,16 +335,19 @@ struct statistic
 	stat_duration handle_time_1_sum; //on_msg consumed time, this indicate the efficiency of msg handling
 #endif
 	stat_duration handle_time_2_sum; //on_msg_handle consumed time, this indicate the efficiency of msg handling
-	stat_duration unpack_time_sum;
+	stat_duration unpack_time_sum; //udp::socket will not gather this item
 };
 
 class auto_duration
 {
 public:
-	auto_duration(typename statistic::stat_duration& duration_) : begin_time(statistic::now()), duration(duration_) {}
-	~auto_duration() {duration += statistic::now() - begin_time;}
+	auto_duration(typename statistic::stat_duration& duration_) : started(true), begin_time(statistic::now()), duration(duration_) {}
+	~auto_duration() {end();}
+
+	void end() {if (started) duration += statistic::now() - begin_time; started = false;}
 
 private:
+	bool started;
 	typename statistic::stat_time begin_time;
 	typename statistic::stat_duration& duration;
 };
@@ -352,6 +359,7 @@ struct obj_with_begin_time : public T
 	obj_with_begin_time(T&& msg) : T(std::move(msg)) {restart();}
 	void restart() {restart(statistic::now());}
 	void restart(const typename statistic::stat_time& begin_time_) {begin_time = begin_time_;}
+	using T::operator =;
 	using T::swap;
 	void swap(obj_with_begin_time& other) {T::swap(other); std::swap(begin_time, other.begin_time);}
 
@@ -444,11 +452,9 @@ bool FUNNAME(const char* const pstr[], const size_t len[], size_t num, bool can_
 { \
 	if (!can_overflow && !this->is_send_buffer_available()) \
 		return false; \
-	in_msg_type msg; \
-	{ \
-		auto_duration dur(this->stat.pack_time_sum); \
-		msg = this->packer_->pack_msg(pstr, len, num, NATIVE); \
-	} \
+	auto_duration dur(this->stat.pack_time_sum); \
+	auto msg = this->packer_->pack_msg(pstr, len, num, NATIVE); \
+	dur.end(); \
 	return this->do_direct_send_msg(std::move(msg)); \
 } \
 TCP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
@@ -475,16 +481,10 @@ TYPE FUNNAME(const asio::ip::udp::endpoint& peer_addr, const std::string& str, b
 #define UDP_SEND_MSG(FUNNAME, NATIVE) \
 bool FUNNAME(const asio::ip::udp::endpoint& peer_addr, const char* const pstr[], const size_t len[], size_t num, bool can_overflow = false) \
 { \
-	if (can_overflow || this->is_send_buffer_available()) \
-	{ \
-		in_msg_type msg; \
-		{ \
-			auto_duration dur(this->stat.pack_time_sum); \
-			msg.swap(peer_addr, this->packer_->pack_msg(pstr, len, num, NATIVE)); \
-		} \
-		return this->do_direct_send_msg(std::move(msg)); \
-	} \
-	return false; \
+	if (!can_overflow && !this->is_send_buffer_available()) \
+		return false; \
+	in_msg_type msg(peer_addr, this->packer_->pack_msg(pstr, len, num, NATIVE)); \
+	return this->do_direct_send_msg(std::move(msg)); \
 } \
 UDP_SEND_MSG_CALL_SWITCH(FUNNAME, bool)
 
