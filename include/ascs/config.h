@@ -67,6 +67,13 @@
  * Remove all mutex (except mutex in object_pool, service_pump, lock_queue and udp::socket).
  * Sharply simplified timer class.
  *
+ * 2016.12.6	version 1.1.4
+ * Drop unnecessary macro definition (ASIO_HAS_STD_CHRONO).
+ * Simplify header files' dependence.
+ * Add Visual C++ solution and project files (Visuall C++ 14.0).
+ * Monitor time consumptions for message packing and unpacking.
+ * Fix bug: pop_first_pending_send_msg and pop_first_pending_recv_msg cannot work.
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
@@ -76,8 +83,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10103	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.1.3"
+#define ASCS_VER		10104	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.4"
 
 //asio and compiler check
 #ifdef _MSC_VER
