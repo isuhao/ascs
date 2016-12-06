@@ -341,15 +341,15 @@ struct statistic
 class auto_duration
 {
 public:
-	auto_duration(typename statistic::stat_duration& duration_) : started(true), begin_time(statistic::now()), duration(duration_) {}
+	auto_duration(statistic::stat_duration& duration_) : started(true), begin_time(statistic::now()), duration(duration_) {}
 	~auto_duration() {end();}
 
 	void end() {if (started) duration += statistic::now() - begin_time; started = false;}
 
 private:
 	bool started;
-	typename statistic::stat_time begin_time;
-	typename statistic::stat_duration& duration;
+	statistic::stat_time begin_time;
+	statistic::stat_duration& duration;
 };
 
 template<typename T>
