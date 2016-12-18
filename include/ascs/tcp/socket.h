@@ -13,8 +13,6 @@
 #ifndef _ASCS_TCP_SOCKET_H_
 #define _ASCS_TCP_SOCKET_H_
 
-#include <vector>
-
 #include "../socket.h"
 #include "../container.h"
 
@@ -138,6 +136,8 @@ protected:
 
 			if (!bufs.empty())
 			{
+				last_send_time = time(nullptr);
+
 				last_send_msg.front().restart();
 				asio::async_write(this->next_layer(), bufs,
 					this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
@@ -190,11 +190,53 @@ protected:
 		this->close(); //call this at the end of 'shutdown', it's very important
 	}
 
+	int clean_heartbeat()
+	{
+		auto heartbeat_len = 0;
+		auto s = this->lowest_layer().native_handle();
+
+#ifdef _WIN32
+		char oob_data;
+		unsigned long no_oob_data = 0;
+		while (0 == no_oob_data)
+		{
+			no_oob_data = 1;
+			ioctlsocket(s, SIOCATMARK, &no_oob_data);
+			if (0 == no_oob_data && recv(s, &oob_data, sizeof(oob_data), MSG_OOB) > 0)
+				++heartbeat_len;
+			else
+				break;
+		}
+#else
+		char oob_data[1024];
+		auto no_oob_data = 0;
+		ioctl(s, SIOCATMARK, &no_oob_data);
+		if (0 == no_oob_data)
+			heartbeat_len = recv(s, &oob_data, sizeof(oob_data), MSG_OOB);
+#endif
+		if (heartbeat_len > 0)
+			last_recv_time = time(nullptr);
+
+		return heartbeat_len;
+	}
+
+	void send_heartbeat(const char c)
+	{
+		auto now = time(nullptr);
+		if (now - last_send_time >= ASCS_HEARTBEAT_INTERVAL)
+		{
+			last_send_time = now;
+			send(this->lowest_layer().native_handle(), &c, 1, MSG_OOB);
+		}
+	}
+
 private:
 	void recv_handler(const asio::error_code& ec, size_t bytes_transferred)
 	{
 		if (!ec && bytes_transferred > 0)
 		{
+			last_recv_time = time(nullptr);
+
 			typename Unpacker::container_type temp_msg_can;
 			auto_duration dur(this->stat.unpack_time_sum);
 			auto unpack_ok = unpacker_->parse_msg(bytes_transferred, temp_msg_can);
@@ -205,10 +247,10 @@ private:
 				this->stat.recv_msg_sum += msg_num;
 				this->temp_msg_buffer.resize(this->temp_msg_buffer.size() + msg_num);
 				auto op_iter = this->temp_msg_buffer.rbegin();
-				for (auto iter = temp_msg_can.rbegin(); iter != temp_msg_can.rend();)
+				for (auto iter = temp_msg_can.rbegin(); iter != temp_msg_can.rend(); ++op_iter, ++iter)
 				{
-					this->stat.recv_byte_sum += (++iter).base()->size();
-					(++op_iter).base()->swap(*iter.base());
+					this->stat.recv_byte_sum += iter->size();
+					op_iter->swap(*iter);
 				}
 			}
 			this->handle_msg();
@@ -259,6 +301,9 @@ protected:
 
 	shutdown_states shutdown_state;
 	std::atomic_size_t shutdown_atomic;
+
+	//heartbeat
+	time_t last_send_time, last_recv_time;
 };
 
 }} //namespace

@@ -74,6 +74,13 @@
  * Monitor time consumptions for message packing and unpacking.
  * Fix bug: pop_first_pending_send_msg and pop_first_pending_recv_msg cannot work.
  *
+ * 2017.1.1		version 1.1.5
+ * Support heartbeat (via OOB data), it's not closable, but you can set a very long interval if you don't want it,
+ *  see ASCS_HEARTBEAT_INTERVAL macro for more details.
+ * Support scatter-gather buffers when receiving messages, this feature needs modification of i_unpacker, you must explicitly define
+ *  ASCS_SCATTERED_RECV_BUFFER macro to open it, this is just for compatiblity.
+ * Demo echo_client support alterable number of sending thread (before, it's a hard code 16).
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
@@ -83,8 +90,8 @@
 # pragma once
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
-#define ASCS_VER		10104	//[x]xyyzz -> [x]x.[y]y.[z]z
-#define ASCS_VERSION	"1.1.4"
+#define ASCS_VER		10105	//[x]xyyzz -> [x]x.[y]y.[z]z
+#define ASCS_VERSION	"1.1.5"
 
 //asio and compiler check
 #ifdef _MSC_VER
@@ -281,6 +288,22 @@ template<typename T> using concurrent_queue = moodycamel::ConcurrentQueue<T>;
 //we also can control the queues (and their containers) via template parameters on calss 'connector_base'
 //'server_socket_base', 'ssl::connector_base' and 'ssl::server_socket_base'.
 //we even can let a socket to use different queue (and / or different container) for input and output via template parameters.
+
+//#define ASCS_SCATTERED_RECV_BUFFER
+//define this macro will let ascs to support scatter-gather buffers when doing async read,
+//it's very useful under certain situations (for example, you're using ring buffer in unpacker).
+
+#ifndef ASCS_HEARTBEAT_INTERVAL
+#define ASCS_HEARTBEAT_INTERVAL	5 //second(s)
+#endif
+static_assert(ASCS_HEARTBEAT_INTERVAL > 0, "heartbeat interval must be bigger than zero.");
+//at every ASCS_HEARTBEAT_INTERVAL second(s), send an OOB data (heartbeat) if no normal messages been sent.
+
+#ifndef ASCS_HEARTBEAT_MAX_ABSENCE
+#define ASCS_HEARTBEAT_MAX_ABSENCE	3 //times of ASCS_HEARTBEAT_INTERVAL
+#endif
+static_assert(ASCS_HEARTBEAT_MAX_ABSENCE > 0, "heartbeat absence must be bigger than zero.");
+//if no any data (include heartbeats) been received within ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE second(s), shut down the link.
 //configurations
 
 #endif /* _ASCS_CONFIG_H_ */

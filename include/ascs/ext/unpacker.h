@@ -115,11 +115,13 @@ public:
 		//read as many as possible except that we have already got an entire msg
 	}
 
-	virtual asio::mutable_buffers_1 prepare_next_recv()
-	{
-		assert(remain_len < ASCS_MSG_BUFFER_SIZE);
-		return asio::buffer(asio::buffer(raw_buff) + remain_len);
-	}
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+	//this is just to satisfy the compiler, it's not a real scatter-gather buffer,
+	//if you introduce a ring buffer, then you will have the chance to provide a real scatter-gather buffer.
+	virtual buffer_type prepare_next_recv() {assert(remain_len < ASCS_MSG_BUFFER_SIZE); return buffer_type(1, asio::buffer(asio::buffer(raw_buff) + remain_len));}
+#else
+	virtual buffer_type prepare_next_recv() {assert(remain_len < ASCS_MSG_BUFFER_SIZE); return asio::buffer(asio::buffer(raw_buff) + remain_len);}
+#endif
 
 protected:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;
@@ -132,7 +134,7 @@ class udp_unpacker : public udp::i_unpacker<std::string>
 {
 public:
 	virtual msg_type parse_msg(size_t bytes_transferred) {assert(bytes_transferred <= ASCS_MSG_BUFFER_SIZE); return msg_type(raw_buff.data(), bytes_transferred);}
-	virtual asio::mutable_buffers_1 prepare_next_recv() {return asio::buffer(raw_buff);}
+	virtual buffer_type prepare_next_recv() {return asio::buffer(raw_buff);}
 
 protected:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;
@@ -164,7 +166,7 @@ public:
 	}
 
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) {return unpacker_.completion_condition(ec, bytes_transferred);}
-	virtual asio::mutable_buffers_1 prepare_next_recv() {return unpacker_.prepare_next_recv();}
+	virtual buffer_type prepare_next_recv() {return unpacker_.prepare_next_recv();}
 
 protected:
 	unpacker unpacker_;
@@ -187,7 +189,7 @@ public:
 		raw_msg->assign(raw_buff.data(), bytes_transferred);
 		return typename super::msg_type(raw_msg);
 	}
-	virtual asio::mutable_buffers_1 prepare_next_recv() {return asio::buffer(raw_buff);}
+	virtual buffer_type prepare_next_recv() {return asio::buffer(raw_buff);}
 
 protected:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;
@@ -256,7 +258,13 @@ public:
 		return 0;
 	}
 
-	virtual asio::mutable_buffers_1 prepare_next_recv() {return raw_buff.empty() ? asio::buffer((char*) &head, ASCS_HEAD_LEN) : asio::buffer(raw_buff.data(), raw_buff.size());}
+	//this is just to satisfy the compiler, it's not a real scatter-gather buffer,
+	//if you introduce a ring buffer, then you will have the chance to provide a real scatter-gather buffer.
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+	virtual buffer_type prepare_next_recv() {return buffer_type(1, raw_buff.empty() ? asio::buffer((char*) &head, ASCS_HEAD_LEN) : asio::buffer(raw_buff.data(), raw_buff.size()));}
+#else
+	virtual buffer_type prepare_next_recv() {return raw_buff.empty() ? asio::buffer((char*) &head, ASCS_HEAD_LEN) : asio::buffer(raw_buff.data(), raw_buff.size());}
+#endif
 
 private:
 	ASCS_HEAD_TYPE head;
@@ -296,7 +304,13 @@ public:
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred)
 		{return ec || bytes_transferred == raw_buff.size() ? 0 : asio::detail::default_max_transfer_size;}
 
-	virtual asio::mutable_buffers_1 prepare_next_recv() {raw_buff.assign(_fixed_length); return asio::buffer(raw_buff.data(), raw_buff.size());}
+	//this is just to satisfy the compiler, it's not a real scatter-gather buffer,
+	//if you introduce a ring buffer, then you will have the chance to provide a real scatter-gather buffer.
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+	virtual buffer_type prepare_next_recv() {raw_buff.assign(_fixed_length); return buffer_type(1, asio::buffer(raw_buff.data(), raw_buff.size()));}
+#else
+	virtual buffer_type prepare_next_recv() {raw_buff.assign(_fixed_length); return asio::buffer(raw_buff.data(), raw_buff.size());}
+#endif
 
 private:
 	basic_buffer raw_buff;
@@ -406,11 +420,13 @@ public:
 		return peek_msg(data_len, &*std::begin(raw_buff));
 	}
 
-	virtual asio::mutable_buffers_1 prepare_next_recv()
-	{
-		assert(remain_len < ASCS_MSG_BUFFER_SIZE);
-		return asio::buffer(asio::buffer(raw_buff) + remain_len);
-	}
+	//this is just to satisfy the compiler, it's not a real scatter-gather buffer,
+	//if you introduce a ring buffer, then you will have the chance to provide a real scatter-gather buffer.
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+	virtual buffer_type prepare_next_recv() {assert(remain_len < ASCS_MSG_BUFFER_SIZE); return buffer_type(1, asio::buffer(asio::buffer(raw_buff) + remain_len));}
+#else
+	virtual buffer_type prepare_next_recv() {assert(remain_len < ASCS_MSG_BUFFER_SIZE); return asio::buffer(asio::buffer(raw_buff) + remain_len);}
+#endif
 
 private:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;
@@ -437,7 +453,14 @@ public:
 	}
 
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) {return ec || bytes_transferred > 0 ? 0 : asio::detail::default_max_transfer_size;}
-	virtual asio::mutable_buffers_1 prepare_next_recv() {return asio::buffer(raw_buff);}
+
+	//this is just to satisfy the compiler, it's not a real scatter-gather buffer,
+	//if you introduce a ring buffer, then you will have the chance to provide a real scatter-gather buffer.
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+	virtual buffer_type prepare_next_recv() {return buffer_type(1, asio::buffer(raw_buff));}
+#else
+	virtual buffer_type prepare_next_recv() {return asio::buffer(raw_buff);}
+#endif
 
 protected:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;

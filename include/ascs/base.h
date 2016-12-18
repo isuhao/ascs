@@ -17,6 +17,7 @@
 #include <stdarg.h>
 
 #include <list>
+#include <vector>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -180,6 +181,11 @@ namespace tcp
 	public:
 		typedef MsgType msg_type;
 		typedef const msg_type msg_ctype;
+#ifdef ASCS_SCATTERED_RECV_BUFFER
+		typedef std::vector<asio::mutable_buffers_1> buffer_type;
+#else
+		typedef asio::mutable_buffers_1 buffer_type;
+#endif
 		typedef std::list<msg_type> container_type;
 
 	protected:
@@ -189,7 +195,7 @@ namespace tcp
 		virtual void reset_state() = 0;
 		virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can) = 0;
 		virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) = 0;
-		virtual asio::mutable_buffers_1 prepare_next_recv() = 0;
+		virtual buffer_type prepare_next_recv() = 0;
 	};
 } //namespace
 
@@ -218,6 +224,7 @@ namespace udp
 	public:
 		typedef MsgType msg_type;
 		typedef const msg_type msg_ctype;
+		typedef asio::mutable_buffers_1 buffer_type;
 		typedef std::list<udp_msg<msg_type>> container_type;
 
 	protected:
@@ -226,7 +233,7 @@ namespace udp
 	public:
 		virtual void reset_state() {}
 		virtual msg_type parse_msg(size_t bytes_transferred) = 0;
-		virtual asio::mutable_buffers_1 prepare_next_recv() = 0;
+		virtual buffer_type prepare_next_recv() = 0;
 	};
 } //namespace
 //unpacker concept

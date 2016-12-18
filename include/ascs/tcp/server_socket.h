@@ -29,6 +29,7 @@ protected:
 public:
 	static const timer::tid TIMER_BEGIN = super::TIMER_END;
 	static const timer::tid TIMER_ASYNC_SHUTDOWN = TIMER_BEGIN;
+	static const timer::tid TIMER_HEARTBEAT_CHECK = TIMER_BEGIN + 1;
 	static const timer::tid TIMER_END = TIMER_BEGIN + 10;
 
 	server_socket_base(Server& server_) : super(server_.get_service_pump()), server(server_) {}
@@ -83,6 +84,8 @@ protected:
 	{
 		if (!this->stopped())
 		{
+			this->last_send_time = this->last_recv_time = time(nullptr);
+			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {this->check_heartbeat(id); return true;});
 			this->do_recv_msg();
 			return true;
 		}
@@ -125,6 +128,19 @@ private:
 		}
 
 		return false;
+	}
+
+	void check_heartbeat(timer::tid id)
+	{
+		assert(TIMER_HEARTBEAT_CHECK == id);
+
+		if (this->clean_heartbeat() > 0) //server socket not send heartbeat initiatively
+			this->send_heartbeat((const char) id);
+		else if (time(nullptr) - this->last_recv_time >= ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE)
+		{
+			show_info("server link:", "broke unexpectedly.");
+			force_shutdown();
+		}
 	}
 
 protected:
