@@ -166,7 +166,7 @@ public:
 	}
 
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) {return unpacker_.completion_condition(ec, bytes_transferred);}
-	virtual buffer_type prepare_next_recv() {return unpacker_.prepare_next_recv();}
+	virtual typename super::buffer_type prepare_next_recv() {return unpacker_.prepare_next_recv();}
 
 protected:
 	unpacker unpacker_;
@@ -189,7 +189,7 @@ public:
 		raw_msg->assign(raw_buff.data(), bytes_transferred);
 		return typename super::msg_type(raw_msg);
 	}
-	virtual buffer_type prepare_next_recv() {return asio::buffer(raw_buff);}
+	virtual typename super::buffer_type prepare_next_recv() {return asio::buffer(raw_buff);}
 
 protected:
 	std::array<char, ASCS_MSG_BUFFER_SIZE> raw_buff;
