@@ -196,24 +196,31 @@ protected:
 		auto s = this->lowest_layer().native_handle();
 
 #ifdef _WIN32
-		char oob_data;
+		char oob_data[1];
 		unsigned long no_oob_data = 0;
-		while (0 == no_oob_data)
-		{
-			no_oob_data = 1;
-			ioctlsocket(s, SIOCATMARK, &no_oob_data);
-			if (0 == no_oob_data && recv(s, &oob_data, sizeof(oob_data), MSG_OOB) > 0)
-				++heartbeat_len;
-			else
-				break;
-		}
 #else
 		char oob_data[1024];
 		auto no_oob_data = 0;
-		ioctl(s, SIOCATMARK, &no_oob_data);
-		if (0 == no_oob_data)
-			heartbeat_len = recv(s, &oob_data, sizeof(oob_data), MSG_OOB);
 #endif
+		while (0 == no_oob_data)
+		{
+			no_oob_data = 1;
+#ifdef _WIN32
+			ioctlsocket(s, SIOCATMARK, &no_oob_data);
+#else
+			ioctl(s, SIOCATMARK, &no_oob_data);
+#endif
+			int recv_len;
+			if (0 == no_oob_data && (recv_len = recv(s, oob_data, sizeof(oob_data), MSG_OOB)) > 0)
+			{
+				heartbeat_len += recv_len;
+				if (recv_len < sizeof(oob_data))
+					break;
+			}
+			else
+				break;
+		}
+
 		if (heartbeat_len > 0)
 			last_recv_time = time(nullptr);
 
