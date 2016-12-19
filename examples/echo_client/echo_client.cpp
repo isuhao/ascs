@@ -352,7 +352,7 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 
 int main(int argc, const char* argv[])
 {
-	printf("usage: %s [<service thread number=1> [<send thread number> [<port=%d> [<ip=%s> [link num=16]]]]]\n", argv[0], ASCS_SERVER_PORT, ASCS_SERVER_IP);
+	printf("usage: %s [<service thread number=1> [<send thread number=8> [<port=%d> [<ip=%s> [link num=16]]]]]\n", argv[0], ASCS_SERVER_PORT, ASCS_SERVER_IP);
 	if (argc >= 2 && (0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-h")))
 		return 0;
 	else
