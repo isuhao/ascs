@@ -85,7 +85,7 @@ protected:
 		if (!this->stopped())
 		{
 			this->last_send_time = this->last_recv_time = time(nullptr);
-			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {this->check_heartbeat(id); return true;});
+			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
 			this->do_recv_msg();
 			return true;
 		}
@@ -130,7 +130,7 @@ private:
 		return false;
 	}
 
-	void check_heartbeat(timer::tid id)
+	bool check_heartbeat(timer::tid id)
 	{
 		assert(TIMER_HEARTBEAT_CHECK == id);
 
@@ -141,6 +141,8 @@ private:
 			show_info("server link:", "broke unexpectedly.");
 			force_shutdown();
 		}
+
+		return true; //always keep this timer
 	}
 
 protected:

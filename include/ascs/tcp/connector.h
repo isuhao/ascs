@@ -186,18 +186,19 @@ private:
 		return false;
 	}
 
-	void check_heartbeat(timer::tid id)
+	bool check_heartbeat(timer::tid id)
 	{
 		assert(TIMER_HEARTBEAT_CHECK == id);
 
 		if (this->clean_heartbeat() <= 0 && time(nullptr) - this->last_recv_time >= ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE)
 		{
 			show_info("client link:", "broke unexpectedly.");
-			auto ec = asio::error_code(asio::error::network_down);
-			force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(ec) >= 0);
+			force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(asio::error_code(asio::error::network_down)) >= 0);
 		}
 		else //client sends heartbeat initiatively
 			this->send_heartbeat((const char) id);
+
+		return true; //always keep this timer
 	}
 
 	void connect_handler(const asio::error_code& ec)
@@ -208,7 +209,7 @@ private:
 			this->reset_state();
 			on_connect();
 			this->last_send_time = this->last_recv_time = time(nullptr);
-			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {this->check_heartbeat(id); return true;});
+			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
 			this->send_msg(); //send buffer may have msgs, send them
 			do_start();
 		}

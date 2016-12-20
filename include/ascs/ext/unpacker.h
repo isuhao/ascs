@@ -43,7 +43,7 @@ public:
 
 		auto pnext = &*std::begin(raw_buff);
 		auto unpack_ok = true;
-		while (unpack_ok) //considering stick package problem, we need a loop
+		while (unpack_ok) //considering sticky package problem, we need a loop
 			if ((size_t) -1 != cur_msg_len)
 			{
 				if (cur_msg_len > ASCS_MSG_BUFFER_SIZE || cur_msg_len <= ASCS_HEAD_LEN)
@@ -58,7 +58,7 @@ public:
 				else
 					break;
 			}
-			else if (remain_len >= ASCS_HEAD_LEN) //the msg's head been received, stick package found
+			else if (remain_len >= ASCS_HEAD_LEN) //the msg's head been received, sticky package found
 			{
 				ASCS_HEAD_TYPE head;
 				memcpy(&head, pnext, ASCS_HEAD_LEN);
@@ -87,13 +87,13 @@ public:
 			memcpy(&*std::begin(raw_buff), pnext, remain_len); //left behind unparsed data
 		}
 
-		//if unpacking failed, successfully parsed msgs will still returned via msg_can(stick package), please note.
+		//if unpacking failed, successfully parsed msgs will still returned via msg_can(sticky package), please note.
 		return unpack_ok;
 	}
 
 	//a return value of 0 indicates that the read operation is complete. a non-zero value indicates the maximum number
 	//of bytes to be read on the next call to the stream's async_read_some function. ---asio::async_read
-	//read as many as possible to reduce asynchronous call-back, and don't forget to handle stick package carefully in parse_msg function.
+	//read as many as possible to reduce asynchronous call-back, and don't forget to handle sticky package carefully in parse_msg function.
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred)
 	{
 		if (ec)
@@ -161,7 +161,7 @@ public:
 			msg_can.back().raw_buffer(raw_msg);
 		});
 
-		//if unpacking failed, successfully parsed msgs will still returned via msg_can(stick package), please note.
+		//if unpacking failed, successfully parsed msgs will still returned via msg_can(sticky package), please note.
 		return unpack_ok;
 	}
 
@@ -402,13 +402,13 @@ public:
 		else if (unpack_ok && remain_len > 0)
 			memcpy(&*std::begin(raw_buff), pnext, remain_len); //left behind unparsed msg
 
-		//if unpacking failed, successfully parsed msgs will still returned via msg_can(stick package), please note.
+		//if unpacking failed, successfully parsed msgs will still returned via msg_can(sticky package), please note.
 		return unpack_ok;
 	}
 
 	//a return value of 0 indicates that the read operation is complete. a non-zero value indicates the maximum number
 	//of bytes to be read on the next call to the stream's async_read_some function. ---asio::async_read
-	//read as many as possible to reduce asynchronous call-back, and don't forget to handle stick package carefully in parse_msg function.
+	//read as many as possible to reduce asynchronous call-back, and don't forget to handle sticky package carefully in parse_msg function.
 	virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred)
 	{
 		if (ec)
