@@ -260,7 +260,11 @@ protected:
 				lock.unlock();
 
 				if (!do_dispatch_msg())
+				{
 					dispatching = false;
+					if (!recv_msg_buffer.empty())
+						dispatch_msg(); //just make sure no pending msgs
+				}
 			}
 		}
 
