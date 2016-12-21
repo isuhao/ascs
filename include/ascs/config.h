@@ -75,8 +75,7 @@
  * Fix bug: pop_first_pending_send_msg and pop_first_pending_recv_msg cannot work.
  *
  * 2017.1.1		version 1.1.5
- * Support heartbeat (via OOB data), it's not closable, but you can set a very long interval if you don't want it,
- *  see ASCS_HEARTBEAT_INTERVAL macro for more details.
+ * Support heartbeat (via OOB data), see ASCS_HEARTBEAT_INTERVAL macro for more details.
  * Support scatter-gather buffers when receiving messages, this feature needs modification of i_unpacker, you must explicitly define
  *  ASCS_SCATTERED_RECV_BUFFER macro to open it, this is just for compatiblity.
  * Demo echo_client support alterable number of sending thread (before, it's a hard code 16).
@@ -235,7 +234,7 @@ static_assert(ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION > 0, "graceful shutdown durati
 
 //how many async_accept delivery concurrently
 #ifndef ASCS_ASYNC_ACCEPT_NUM
-#define ASCS_ASYNC_ACCEPT_NUM	1
+#define ASCS_ASYNC_ACCEPT_NUM	16
 #endif
 static_assert(ASCS_ASYNC_ACCEPT_NUM > 0, "async accept number must be bigger than zero.");
 
@@ -297,8 +296,8 @@ template<typename T> using concurrent_queue = moodycamel::ConcurrentQueue<T>;
 #ifndef ASCS_HEARTBEAT_INTERVAL
 #define ASCS_HEARTBEAT_INTERVAL	5 //second(s)
 #endif
-static_assert(ASCS_HEARTBEAT_INTERVAL > 0, "heartbeat interval must be bigger than zero.");
-//at every ASCS_HEARTBEAT_INTERVAL second(s), send an OOB data (heartbeat) if no normal messages been sent.
+//at every ASCS_HEARTBEAT_INTERVAL second(s), send an OOB data (heartbeat) if no normal messages been sent,
+//less than or equal to zero means disable heartbeat.
 
 #ifndef ASCS_HEARTBEAT_MAX_ABSENCE
 #define ASCS_HEARTBEAT_MAX_ABSENCE	3 //times of ASCS_HEARTBEAT_INTERVAL

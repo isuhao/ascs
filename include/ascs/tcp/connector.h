@@ -209,7 +209,8 @@ private:
 			this->reset_state();
 			on_connect();
 			this->last_send_time = this->last_recv_time = time(nullptr);
-			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
+			if (ASCS_HEARTBEAT_INTERVAL > 0)
+				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
 			this->send_msg(); //send buffer may have msgs, send them
 			do_start();
 		}
