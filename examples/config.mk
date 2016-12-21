@@ -29,7 +29,7 @@ lflag += -pthreads -lsocket -lnsl ${ext_libs}
 else
 cflag += -pthread ${ext_cflag} ${ext_location} -I../../include/
 lflag += -pthread ${ext_libs}
-#endif
+endif
 
 target = ${dir}/${module}
 sources = ${shell ls *.cpp}
