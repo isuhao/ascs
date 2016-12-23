@@ -10,6 +10,11 @@
 //#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_USE_STEADY_TIMER
 
+//#define ASCS_MAX_MSG_NUM		16
+//if there's a huge number of links, please reduce messge buffer via ASCS_MAX_MSG_NUM macro.
+//please think about if we have 512 links, how much memory we can accupy at most with default ASCS_MAX_MSG_NUM?
+//it's 2 * 1024 * 1024 * 512 = 1G
+
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0
 //0-default packer and unpacker, head(length) + body

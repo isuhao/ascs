@@ -13,7 +13,11 @@
 #define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks
 #define ASCS_INPUT_CONTAINER list
 #endif
-//configuration
+
+//#define ASCS_MAX_MSG_NUM	16
+//if there's a huge number of links, please reduce messge buffer via ST_ASIO_MAX_MSG_NUM macro.
+//please think about if we have 512 links, how much memory we can accupy at most with default ASCS_MAX_MSG_NUM?
+//it's 2 * 1024 * 1024 * 512 = 1G
 
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0
@@ -32,6 +36,7 @@
 #define ASCS_DEFAULT_PACKER prefix_suffix_packer
 #define ASCS_DEFAULT_UNPACKER prefix_suffix_unpacker
 #endif
+//configuration
 
 #include <ascs/ext/tcp.h>
 using namespace ascs;
@@ -289,7 +294,8 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 	auto group_num = std::min(send_thread_num, link_num);
 	auto group_link_num = link_num / group_num;
 	auto left_link_num = link_num - group_num * group_link_num;
-	uint64_t total_msg_bytes = msg_num * msg_len * link_num;
+	uint64_t total_msg_bytes = link_num * msg_len;
+	total_msg_bytes *= msg_num;
 
 	auto group_index = (size_t) -1;
 	size_t this_group_link_num = 0;
@@ -342,12 +348,11 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 			fflush(stdout);
 		}
 	} while (100 != percent);
+	do_something_to_all(threads, [](auto& t) {t.join();});
 	begin_time.stop();
 
 	printf("\r100%%\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
 	printf("speed: %.0f(*2)kB/s.\n", total_msg_bytes / begin_time.elapsed() / 1024);
-
-	do_something_to_all(threads, [](auto& t) {t.join();});
 }
 
 int main(int argc, const char* argv[])

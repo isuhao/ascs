@@ -143,7 +143,7 @@ private:
 			force_shutdown();
 		}
 
-		return true; //always keep this timer
+		return this->started(); //always keep this timer
 	}
 
 protected:

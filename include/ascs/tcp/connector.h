@@ -198,7 +198,7 @@ private:
 		else //client sends heartbeat initiatively
 			this->send_heartbeat((const char) id);
 
-		return true; //always keep this timer
+		return this->started(); //always keep this timer
 	}
 
 	void connect_handler(const asio::error_code& ec)
