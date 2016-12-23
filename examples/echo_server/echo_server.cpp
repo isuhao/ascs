@@ -9,7 +9,7 @@
 #define ASCS_ENHANCED_STABILITY
 //#define ASCS_FULL_STATISTIC //full statistic will slightly impact efficiency
 //#define ASCS_USE_STEADY_TIMER
-
+#define ASCS_HEARTBEAT_INTERVAL	0 //disable heartbeat when doing performance test
 //#define ASCS_MAX_MSG_NUM		16
 //if there's a huge number of links, please reduce messge buffer via ASCS_MAX_MSG_NUM macro.
 //please think about if we have 512 links, how much memory we can accupy at most with default ASCS_MAX_MSG_NUM?

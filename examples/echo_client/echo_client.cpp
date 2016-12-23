@@ -13,7 +13,7 @@
 #define ASCS_INPUT_QUEUE non_lock_queue //we will never operate sending buffer concurrently, so need no locks
 #define ASCS_INPUT_CONTAINER list
 #endif
-
+#define ASCS_HEARTBEAT_INTERVAL	0 //disable heartbeat when doing performance test
 //#define ASCS_MAX_MSG_NUM	16
 //if there's a huge number of links, please reduce messge buffer via ST_ASIO_MAX_MSG_NUM macro.
 //please think about if we have 512 links, how much memory we can accupy at most with default ASCS_MAX_MSG_NUM?
