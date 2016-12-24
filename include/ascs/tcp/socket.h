@@ -304,7 +304,7 @@ protected:
 	list<typename super::in_msg> last_send_msg;
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
 
-	shutdown_states shutdown_state;
+	volatile shutdown_states shutdown_state;
 	std::atomic_size_t shutdown_atomic;
 
 	//heartbeat
