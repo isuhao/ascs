@@ -109,7 +109,7 @@ protected:
 	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
-		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty())
+		if (!this->send_msg_buffer.empty() && is_send_allowed())
 		{
 			std::vector<asio::const_buffer> bufs;
 			{
@@ -180,14 +180,13 @@ protected:
 
 		shutdown_state = shutdown_states::FORCE;
 		this->stop_all_timer();
+		this->close();
 
 		if (this->lowest_layer().is_open())
 		{
 			asio::error_code ec;
 			this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 		}
-
-		this->close(); //call this at the end of 'shutdown', it's very important
 	}
 
 	int clean_heartbeat()

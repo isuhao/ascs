@@ -440,7 +440,7 @@ template<typename _Predicate> void NAME(const _Predicate& __pred) const {for (au
 //used by both TCP and UDP
 #define SAFE_SEND_MSG_CHECK \
 { \
-	if (!this->is_send_allowed() || this->stopped()) return false; \
+	if (!this->is_send_allowed()) return false; \
 	std::this_thread::sleep_for(std::chrono::milliseconds(50)); \
 }
 

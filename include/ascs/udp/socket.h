@@ -122,7 +122,7 @@ protected:
 	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
-		if (is_send_allowed() && !this->stopped() && !this->send_msg_buffer.empty() && this->send_msg_buffer.try_dequeue(last_send_msg))
+		if (!this->send_msg_buffer.empty() && is_send_allowed() && this->send_msg_buffer.try_dequeue(last_send_msg))
 		{
 			this->stat.send_delay_sum += statistic::now() - last_send_msg.begin_time;
 
