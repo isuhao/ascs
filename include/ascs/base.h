@@ -33,21 +33,19 @@
 namespace ascs
 {
 
-template<typename atomic_type = std::atomic_size_t>
 class scope_atomic_lock : public asio::detail::noncopyable
 {
 public:
-	scope_atomic_lock(atomic_type& atomic_) : added(false), atomic(atomic_) {lock();} //atomic_ must has been initialized to zero
+	scope_atomic_lock(std::atomic_flag& atomic_) : _locked(false), atomic(atomic_) {lock();} //atomic_ must has been initialized to false
 	~scope_atomic_lock() {unlock();}
 
-	void lock() {if (!added) _locked = 1 == ++atomic; added = true;}
-	void unlock() {if (added) --atomic; _locked = false, added = false;}
+	void lock() {if (!_locked) _locked = !atomic.test_and_set();}
+	void unlock() {if (_locked) atomic.clear(); _locked = false;}
 	bool locked() const {return _locked;}
 
 private:
-	bool added;
 	bool _locked;
-	atomic_type& atomic;
+	std::atomic_flag& atomic;
 };
 
 class service_pump;

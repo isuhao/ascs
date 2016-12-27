@@ -34,12 +34,11 @@ protected:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	enum shutdown_states {NONE, FORCE, GRACEFUL};
+	enum shutdown_states { NONE, FORCE, GRACEFUL };
 
-	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()),
-		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {}
-	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()),
-		shutdown_state(shutdown_states::NONE), shutdown_atomic(0) {}
+	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE) {shutdown_atomic.clear();}
+	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE)
+		{shutdown_atomic.clear();}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
@@ -174,7 +173,7 @@ protected:
 
 	void shutdown()
 	{
-		scope_atomic_lock<> lock(shutdown_atomic);
+		scope_atomic_lock lock(shutdown_atomic);
 		if (!lock.locked())
 			return;
 
@@ -304,7 +303,7 @@ protected:
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
 
 	volatile shutdown_states shutdown_state;
-	std::atomic_size_t shutdown_atomic;
+	std::atomic_flag shutdown_atomic;
 
 	//heartbeat
 	time_t last_send_time, last_recv_time;

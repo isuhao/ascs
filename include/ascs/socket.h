@@ -21,7 +21,7 @@ namespace ascs
 template<typename Socket, typename Packer, typename Unpacker, typename InMsgType, typename OutMsgType,
 	template<typename, typename> class InQueue, template<typename> class InContainer,
 	template<typename, typename> class OutQueue, template<typename> class OutContainer>
-class socket: public timer
+class socket : public timer
 {
 protected:
 	static const tid TIMER_BEGIN = timer::TIMER_END;
@@ -30,10 +30,10 @@ protected:
 	static const tid TIMER_DELAY_CLOSE = TIMER_BEGIN + 2;
 	static const tid TIMER_END = TIMER_BEGIN + 10;
 
-	socket(asio::io_service& io_service_) : timer(io_service_), _id(-1), next_layer_(io_service_), packer_(std::make_shared<Packer>()),
-		send_atomic(0), dispatch_atomic(0), started_(false), start_atomic(0) {reset_state();}
-	template<typename Arg> socket(asio::io_service& io_service_, Arg& arg) : timer(io_service_), _id(-1), next_layer_(io_service_, arg), packer_(std::make_shared<Packer>()),
-		send_atomic(0), dispatch_atomic(0), started_(false), start_atomic(0) {reset_state();}
+	socket(asio::io_service& io_service_) : timer(io_service_), _id(-1), next_layer_(io_service_), packer_(std::make_shared<Packer>()), started_(false)
+		{send_atomic.clear(); dispatch_atomic.clear(); start_atomic.clear(); reset_state();}
+	template<typename Arg> socket(asio::io_service& io_service_, Arg& arg) : timer(io_service_), _id(-1), next_layer_(io_service_, arg), packer_(std::make_shared<Packer>()), started_(false)
+		{send_atomic.clear(); dispatch_atomic.clear(); start_atomic.clear(); reset_state();}
 
 	void reset()
 	{
@@ -82,7 +82,7 @@ public:
 	{
 		if (!started_)
 		{
-			scope_atomic_lock<> lock(start_atomic);
+			scope_atomic_lock lock(start_atomic);
 			if (!started_ && lock.locked())
 				started_ = do_start();
 		}
@@ -93,7 +93,7 @@ public:
 	{
 		if (!sending)
 		{
-			scope_atomic_lock<> lock(send_atomic);
+			scope_atomic_lock lock(send_atomic);
 			if (!sending && lock.locked())
 			{
 				sending = true;
@@ -257,7 +257,7 @@ protected:
 	{
 		if (!dispatching)
 		{
-			scope_atomic_lock<> lock(dispatch_atomic);
+			scope_atomic_lock lock(dispatch_atomic);
 			if (!dispatching && lock.locked())
 			{
 				dispatching = true;
@@ -405,16 +405,16 @@ protected:
 
 	volatile bool sending;
 	bool paused_sending;
-	std::atomic_size_t send_atomic;
+	std::atomic_flag send_atomic;
 
 	volatile bool dispatching;
 	bool paused_dispatching;
-	std::atomic_size_t dispatch_atomic;
+	std::atomic_flag dispatch_atomic;
 
 	volatile bool congestion_controlling;
 
 	volatile bool started_; //has started or not
-	std::atomic_size_t start_atomic;
+	std::atomic_flag start_atomic;
 
 	struct statistic stat;
 	typename statistic::stat_time recv_idle_begin_time;
