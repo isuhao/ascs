@@ -32,11 +32,9 @@ public:
 	static const timer::tid TIMER_HEARTBEAT_CHECK = TIMER_BEGIN + 2;
 	static const timer::tid TIMER_END = TIMER_BEGIN + 10;
 
-	connector_base(asio::io_service& io_service_) : super(io_service_), connected(false), reconnecting(true)
-		{set_server_addr(ASCS_SERVER_PORT, ASCS_SERVER_IP);}
+	connector_base(asio::io_service& io_service_) : super(io_service_), connected(false), reconnecting(true) {set_server_addr(ASCS_SERVER_PORT, ASCS_SERVER_IP);}
 	template<typename Arg>
-	connector_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), connected(false), reconnecting(true)
-		{set_server_addr(ASCS_SERVER_PORT, ASCS_SERVER_IP);}
+	connector_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), connected(false), reconnecting(true) {set_server_addr(ASCS_SERVER_PORT, ASCS_SERVER_IP);}
 
 	//reset all, be ensure that there's no any operations performed on this connector_base when invoke it
 	//notice, when reusing this connector_base, object_pool will invoke reset(), child must re-write this to initialize

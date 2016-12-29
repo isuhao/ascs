@@ -13,8 +13,6 @@
 #ifndef _ASCS_TIMER_H_
 #define _ASCS_TIMER_H_
 
-#include <vector>
-
 #ifdef ASCS_USE_STEADY_TIMER
 #include <asio/steady_timer.hpp>
 #else

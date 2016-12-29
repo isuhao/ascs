@@ -36,11 +36,11 @@ namespace ascs
 class scope_atomic_lock : public asio::detail::noncopyable
 {
 public:
-	scope_atomic_lock(std::atomic_flag& atomic_) : _locked(false), atomic(atomic_) {lock();} //atomic_ must has been initialized to false
+	scope_atomic_lock(std::atomic_flag& atomic_) : _locked(false), atomic(atomic_) {lock();} //atomic_ must has been initialized with false
 	~scope_atomic_lock() {unlock();}
 
-	void lock() {if (!_locked) _locked = !atomic.test_and_set();}
-	void unlock() {if (_locked) atomic.clear(); _locked = false;}
+	void lock() {if (!_locked) _locked = !atomic.test_and_set(std::memory_order_acq_rel);}
+	void unlock() {if (_locked) atomic.clear(std::memory_order_release); _locked = false;}
 	bool locked() const {return _locked;}
 
 private:

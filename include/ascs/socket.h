@@ -30,10 +30,22 @@ protected:
 	static const tid TIMER_DELAY_CLOSE = TIMER_BEGIN + 2;
 	static const tid TIMER_END = TIMER_BEGIN + 10;
 
-	socket(asio::io_service& io_service_) : timer(io_service_), _id(-1), next_layer_(io_service_), packer_(std::make_shared<Packer>()), started_(false)
-		{send_atomic.clear(); dispatch_atomic.clear(); start_atomic.clear(); reset_state();}
-	template<typename Arg> socket(asio::io_service& io_service_, Arg& arg) : timer(io_service_), _id(-1), next_layer_(io_service_, arg), packer_(std::make_shared<Packer>()), started_(false)
-		{send_atomic.clear(); dispatch_atomic.clear(); start_atomic.clear(); reset_state();}
+	socket(asio::io_service& io_service_) : timer(io_service_), next_layer_(io_service_) {first_init();}
+	template<typename Arg> socket(asio::io_service& io_service_, Arg& arg) : timer(io_service_), next_layer_(io_service_, arg) {first_init();}
+
+	//helper function, just call it in constructor
+	void first_init()
+	{
+		_id = -1;
+		packer_ = std::make_shared<Packer>();
+		sending = paused_sending = false;
+		dispatching = paused_dispatching = false;
+		congestion_controlling = false;
+		started_ = false;
+		send_atomic.clear(std::memory_order_relaxed);
+		dispatch_atomic.clear(std::memory_order_relaxed);
+		start_atomic.clear(std::memory_order_relaxed);
+	}
 
 	void reset()
 	{

@@ -70,6 +70,8 @@ public:
 
 	void push_front(const _Ty& _Val) {++s; impl.push_front(_Val);}
 	void push_front(_Ty&& _Val) {++s; impl.push_front(std::move(_Val));}
+	template<class... _Valty>
+	void emplace_front(_Valty&&... _Val) {++s; impl.emplace_front(std::forward<_Valty>(_Val)...);}
 	void pop_front() {--s; impl.pop_front();}
 	reference front() {return impl.front();}
 	iterator begin() {return impl.begin();}
@@ -80,6 +82,8 @@ public:
 
 	void push_back(const _Ty& _Val) {++s; impl.push_back(_Val);}
 	void push_back(_Ty&& _Val) {++s; impl.push_back(std::move(_Val));}
+	template<class... _Valty>
+	void emplace_back(_Valty&&... _Val) {++s; impl.emplace_back(std::forward<_Valty>(_Val)...);}
 	void pop_back() {--s; impl.pop_back();}
 	reference back() {return impl.back();}
 	iterator end() {return impl.end();}
@@ -179,8 +183,8 @@ public:
 // empty
 // clear
 // swap
-// push_back(const T& item)
-// push_back(T&& item)
+// emplace_back(const T& item)
+// emplace_back(T&& item)
 // splice(Container::const_iterator, std::list<T>&), after this, std::list<T> must be empty
 // front
 // pop_front
@@ -200,8 +204,8 @@ public:
 	void move_items_in(std::list<T>& can) {typename Lockable::lock_guard lock(*this); move_items_in_(can);}
 	bool try_dequeue(T& item) {typename Lockable::lock_guard lock(*this); return try_dequeue_(item);}
 
-	bool enqueue_(const T& item) {this->push_back(item); return true;}
-	bool enqueue_(T&& item) {this->push_back(std::move(item)); return true;}
+	bool enqueue_(const T& item) {this->emplace_back(item); return true;}
+	bool enqueue_(T&& item) {this->emplace_back(std::move(item)); return true;}
 	void move_items_in_(std::list<T>& can) {this->splice(std::end(*this), can);}
 	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
 };

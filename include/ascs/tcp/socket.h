@@ -34,11 +34,18 @@ protected:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	enum shutdown_states { NONE, FORCE, GRACEFUL };
+	enum shutdown_states {NONE, FORCE, GRACEFUL};
 
-	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE) {shutdown_atomic.clear();}
-	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg), unpacker_(std::make_shared<Unpacker>()), shutdown_state(shutdown_states::NONE)
-		{shutdown_atomic.clear();}
+	socket_base(asio::io_service& io_service_) : super(io_service_) {first_init();}
+	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg) {first_init();}
+
+	//helper function, just call it in constructor
+	void first_init()
+	{
+		unpacker_ = std::make_shared<Unpacker>();
+		shutdown_state = shutdown_states::NONE;
+		shutdown_atomic.clear(std::memory_order_relaxed);
+	}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
@@ -110,7 +117,7 @@ protected:
 	{
 		if (!this->send_msg_buffer.empty() && is_send_allowed())
 		{
-			std::vector<asio::const_buffer> bufs;
+			std::list<asio::const_buffer> bufs;
 			{
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 				const size_t max_send_size = 0;
@@ -126,8 +133,8 @@ protected:
 				{
 					this->stat.send_delay_sum += end_time - msg.begin_time;
 					size += msg.size();
-					last_send_msg.push_back(std::move(msg));
-					bufs.push_back(asio::buffer(last_send_msg.back().data(), last_send_msg.back().size()));
+					last_send_msg.emplace_back(std::move(msg));
+					bufs.emplace_back(last_send_msg.back().data(), last_send_msg.back().size());
 					if (size >= max_send_size)
 						break;
 				}
