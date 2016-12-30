@@ -122,7 +122,7 @@ protected:
 			show_info("server link:", "broke unexpectedly.");
 			force_shutdown();
 		}
-		else if (new - this->last_send_time >= interval)
+		else if (now - this->last_send_time >= interval)
 			this->send_heartbeat('s');
 
 		return this->started(); //always keep this timer
