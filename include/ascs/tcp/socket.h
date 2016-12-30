@@ -223,7 +223,7 @@ protected:
 		}
 
 		if (heartbeat_len > 0)
-			last_interact_time = time(nullptr);
+			last_recv_time = time(nullptr);
 
 		return heartbeat_len;
 	}
@@ -234,7 +234,7 @@ private:
 	{
 		if (!ec && bytes_transferred > 0)
 		{
-			last_interact_time = time(nullptr);
+			last_recv_time = time(nullptr);
 
 			typename Unpacker::container_type temp_msg_can;
 			auto_duration dur(this->stat.unpack_time_sum);
@@ -269,7 +269,7 @@ private:
 	{
 		if (!ec)
 		{
-			last_interact_time = time(nullptr);
+			last_send_time = time(nullptr);
 
 			this->stat.send_time_sum += statistic::now() - last_send_msg.front().begin_time;
 			this->stat.send_byte_sum += bytes_transferred;
@@ -304,7 +304,7 @@ protected:
 	std::atomic_flag shutdown_atomic;
 
 	//heartbeat
-	time_t last_interact_time;
+	time_t last_send_time, last_recv_time;
 };
 
 }} //namespace

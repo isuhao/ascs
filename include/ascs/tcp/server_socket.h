@@ -84,7 +84,7 @@ protected:
 	{
 		if (!this->stopped())
 		{
-			this->last_interact_time = time(nullptr);
+			this->last_send_time = this->last_recv_time = time(nullptr);
 			if (ASCS_HEARTBEAT_INTERVAL > 0)
 				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
 			this->do_recv_msg();
@@ -116,13 +116,13 @@ protected:
 		this->clean_heartbeat();
 
 		assert(interval > 0);
-		auto time_elapse = time(nullptr) - this->last_interact_time;
-		if (time_elapse >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
+		auto now = time(nullptr);
+		if (now - std::max(this->last_send_time, this->last_recv_time) >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
 		{
 			show_info("server link:", "broke unexpectedly.");
 			force_shutdown();
 		}
-		else if (time_elapse >= interval)
+		else if (new - this->last_send_time >= interval)
 			this->send_heartbeat('s');
 
 		return this->started(); //always keep this timer
