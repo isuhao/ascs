@@ -166,15 +166,17 @@ protected:
 	//otherwise, you can call check_heartbeat with you own logic, but you still need to define a valid ASCS_HEARTBEAT_MAX_ABSENCE macro, please note.
 	bool check_heartbeat(int interval)
 	{
-		assert(interval > 0);
+		this->clean_heartbeat();
 
-		if (this->clean_heartbeat() <= 0 && time(nullptr) - this->last_recv_time >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
+		assert(interval > 0);
+		auto time_elapse = time(nullptr) - this->last_interact_time;
+		if (time_elapse >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
 		{
 			show_info("client link:", "broke unexpectedly.");
 			force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(asio::error_code(asio::error::network_down)) >= 0);
 		}
-		else //client sends heartbeat initiatively
-			this->send_heartbeat(interval, 'c');
+		else if (time_elapse >= interval)
+			this->send_heartbeat('c');
 
 		return this->started(); //always keep this timer
 	}
@@ -209,7 +211,7 @@ private:
 			connected = reconnecting = true;
 			this->reset_state();
 			on_connect();
-			this->last_send_time = this->last_recv_time = time(nullptr);
+			this->last_interact_time = time(nullptr);
 			if (ASCS_HEARTBEAT_INTERVAL > 0)
 				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
 			this->send_msg(); //send buffer may have msgs, send them

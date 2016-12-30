@@ -70,14 +70,14 @@
  * 2016.12.6	version 1.1.4
  * Drop unnecessary macro definition (ASIO_HAS_STD_CHRONO).
  * Simplify header files' dependence.
- * Add Visual C++ solution and project files (Visuall C++ 14.0).
+ * Add Visual C++ solution and project files (Visual C++ 14.0).
  * Monitor time consumptions for message packing and unpacking.
  * Fix bug: pop_first_pending_send_msg and pop_first_pending_recv_msg cannot work.
  *
  * 2017.1.1		version 1.1.5
  * Support heartbeat (via OOB data), see ASCS_HEARTBEAT_INTERVAL macro for more details.
  * Support scatter-gather buffers when receiving messages, this feature needs modification of i_unpacker, you must explicitly define
- *  ASCS_SCATTERED_RECV_BUFFER macro to open it, this is just for compatiblity.
+ *  ASCS_SCATTERED_RECV_BUFFER macro to open it, this is just for compatibility.
  * Simplify lock-free mechanism (use std::atomic_flag instead of std::atomic_size_t).
  * Optimize container insertion (use series of emplace functions instead).
  * Demo echo_client support alterable number of sending thread (before, it's a hard code 16).
