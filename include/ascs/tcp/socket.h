@@ -230,10 +230,10 @@ protected:
 		return heartbeat_len;
 	}
 
-	void send_heartbeat(const char c)
+	void send_heartbeat(int interval, const char c)
 	{
 		auto now = time(nullptr);
-		if (now - last_send_time >= ASCS_HEARTBEAT_INTERVAL)
+		if (now - last_send_time >= interval)
 		{
 			last_send_time = now;
 			send(this->lowest_layer().native_handle(), &c, 1, MSG_OOB);

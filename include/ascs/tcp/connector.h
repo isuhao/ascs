@@ -161,6 +161,24 @@ protected:
 		return false;
 	}
 
+	//unit is second
+	//if macro ASCS_HEARTBEAT_INTERVAL is bigger than zero, connector_base will start a timer to call this automatically with interval equal to ASCS_HEARTBEAT_INTERVAL.
+	//otherwise, you can call check_heartbeat with you own logic, but you still need to define a valid ASCS_HEARTBEAT_MAX_ABSENCE macro, please note.
+	bool check_heartbeat(int interval)
+	{
+		assert(interval > 0);
+
+		if (this->clean_heartbeat() <= 0 && time(nullptr) - this->last_recv_time >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
+		{
+			show_info("client link:", "broke unexpectedly.");
+			force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(asio::error_code(asio::error::network_down)) >= 0);
+		}
+		else //client sends heartbeat initiatively
+			this->send_heartbeat(interval, 'c');
+
+		return this->started(); //always keep this timer
+	}
+
 private:
 	bool async_shutdown_handler(timer::tid id, size_t loop_num)
 	{
@@ -184,21 +202,6 @@ private:
 		return false;
 	}
 
-	bool check_heartbeat(timer::tid id)
-	{
-		assert(TIMER_HEARTBEAT_CHECK == id);
-
-		if (this->clean_heartbeat() <= 0 && time(nullptr) - this->last_recv_time >= ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE)
-		{
-			show_info("client link:", "broke unexpectedly.");
-			force_shutdown(this->is_shutting_down() ? reconnecting : prepare_reconnect(asio::error_code(asio::error::network_down)) >= 0);
-		}
-		else //client sends heartbeat initiatively
-			this->send_heartbeat((const char) id);
-
-		return this->started(); //always keep this timer
-	}
-
 	void connect_handler(const asio::error_code& ec)
 	{
 		if (!ec)
@@ -208,7 +211,7 @@ private:
 			on_connect();
 			this->last_send_time = this->last_recv_time = time(nullptr);
 			if (ASCS_HEARTBEAT_INTERVAL > 0)
-				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
+				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
 			this->send_msg(); //send buffer may have msgs, send them
 			do_start();
 		}

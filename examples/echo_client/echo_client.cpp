@@ -315,13 +315,13 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 		}
 
 		--this_group_link_num;
-		link_groups[group_index].push_back(item);
+		link_groups[group_index].emplace_back(item);
 	});
 
 	cpu_timer begin_time;
 	std::list<std::thread> threads;
 	do_something_to_all(link_groups, [&threads, msg_num, msg_len, msg_fill](const auto& item) {
-		threads.push_back(std::thread([&item, msg_num, msg_len, msg_fill]() {
+		threads.emplace_back([&item, msg_num, msg_len, msg_fill]() {
 			auto buff = new char[msg_len];
 			memset(buff, msg_fill, msg_len);
 			for (size_t i = 0; i < msg_num; ++i)
@@ -332,7 +332,7 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 				do_something_to_all(item, [buff, msg_len](const auto& item2) {item2->safe_send_msg(buff, msg_len);}); //can_overflow is false, it's important
 			}
 			delete[] buff;
-		}));
+		});
 	});
 
 	unsigned percent = 0;

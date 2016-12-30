@@ -86,7 +86,7 @@ protected:
 		{
 			this->last_send_time = this->last_recv_time = time(nullptr);
 			if (ASCS_HEARTBEAT_INTERVAL > 0)
-				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(id);});
+				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
 			this->do_recv_msg();
 			return true;
 		}
@@ -106,6 +106,24 @@ protected:
 		server.del_client(this->shared_from_this());
 #endif
 		this->shutdown_state = super::shutdown_states::NONE;
+	}
+
+	//unit is second
+	//if macro ASCS_HEARTBEAT_INTERVAL is bigger than zero, server_socket_base will start a timer to call this automatically with interval equal to ASCS_HEARTBEAT_INTERVAL.
+	//otherwise, you can call check_heartbeat with you own logic, but you still need to define a valid ASCS_HEARTBEAT_MAX_ABSENCE macro, please note.
+	bool check_heartbeat(int interval)
+	{
+		assert(interval > 0);
+
+		if (this->clean_heartbeat() > 0) //server socket never send heartbeat initiatively
+			this->send_heartbeat(interval, 's');
+		else if (time(nullptr) - this->last_recv_time >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
+		{
+			show_info("server link:", "broke unexpectedly.");
+			force_shutdown();
+		}
+
+		return this->started(); //always keep this timer
 	}
 
 private:
@@ -129,21 +147,6 @@ private:
 		}
 
 		return false;
-	}
-
-	bool check_heartbeat(timer::tid id)
-	{
-		assert(TIMER_HEARTBEAT_CHECK == id);
-
-		if (this->clean_heartbeat() > 0) //server socket not send heartbeat initiatively
-			this->send_heartbeat((const char) id);
-		else if (time(nullptr) - this->last_recv_time >= ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE)
-		{
-			show_info("server link:", "broke unexpectedly.");
-			force_shutdown();
-		}
-
-		return this->started(); //always keep this timer
 	}
 
 protected:

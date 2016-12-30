@@ -301,7 +301,9 @@ template<typename T> using concurrent_queue = moodycamel::ConcurrentQueue<T>;
 #define ASCS_HEARTBEAT_INTERVAL	5 //second(s)
 #endif
 //at every ASCS_HEARTBEAT_INTERVAL second(s), send an OOB data (heartbeat) if no normal messages been sent,
-//less than or equal to zero means disable heartbeat.
+//less than or equal to zero means disable heartbeat, then you can send and check heartbeat with you own logic by calling connector_base::check_heartbeat
+// or server_socket_base::check_heartbeat, and you still need to define a valid ASCS_HEARTBEAT_MAX_ABSENCE macro, please note.
+
 
 #ifndef ASCS_HEARTBEAT_MAX_ABSENCE
 #define ASCS_HEARTBEAT_MAX_ABSENCE	3 //times of ASCS_HEARTBEAT_INTERVAL
