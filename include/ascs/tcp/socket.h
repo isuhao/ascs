@@ -115,7 +115,7 @@ protected:
 	//return false if send buffer is empty or sending not allowed or io_service stopped
 	virtual bool do_send_msg()
 	{
-		if (!this->send_msg_buffer.empty() && is_send_allowed())
+		if (is_send_allowed())
 		{
 			std::list<asio::const_buffer> bufs;
 			{
