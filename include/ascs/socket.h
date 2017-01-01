@@ -112,11 +112,7 @@ public:
 				lock.unlock();
 
 				if (!do_send_msg())
-				{
 					sending = false;
-					if (is_send_allowed() && !send_msg_buffer.empty())
-						send_msg(); //just make sure no pending msgs
-				}
 			}
 		}
 
@@ -276,11 +272,7 @@ protected:
 				lock.unlock();
 
 				if (!do_dispatch_msg())
-				{
 					dispatching = false;
-					if (!paused_dispatching && !recv_msg_buffer.empty())
-						dispatch_msg(); //just make sure no pending msgs
-				}
 			}
 		}
 
