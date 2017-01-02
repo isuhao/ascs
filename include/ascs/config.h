@@ -85,6 +85,9 @@
  * Fix bug: In extreme cases, messages may get starved in send buffer and will not be sent until arrival of next message.
  * Fix bug: Sometimes, connector_base cannot reconnect to the server after link broken.
  *
+ * known issues:
+ * 1. heartbeat mechanism may not be able to work properly bewteen different system (I just tried win-10 and Ubuntu-15.10).
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
