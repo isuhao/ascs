@@ -100,7 +100,7 @@ public:
 		}
 	}
 
-	//return false if send buffer is empty or sending not allowed or io_service stopped
+	//return false if send buffer is empty or sending not allowed
 	bool send_msg()
 	{
 		if (!sending)
@@ -121,10 +121,12 @@ public:
 
 	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
 	bool suspend_send_msg() const {return paused_sending;}
+	bool is_sending_msg() const {return sending;}
 
 	//for a socket that has been shut down, resuming message dispatching will not take effect for left messages.
-	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend) && started()) dispatch_msg();}
+	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) dispatch_msg();}
 	bool suspend_dispatch_msg() const {return paused_dispatching;}
+	bool is_dispatching_msg() const {return dispatching;}
 
 	void congestion_control(bool enable) {congestion_controlling = enable;}
 	bool congestion_control() const {return congestion_controlling;}
@@ -145,7 +147,7 @@ public:
 
 	//if you use can_overflow = true to invoke send_msg or send_native_msg, it will always succeed no matter the sending buffer is available or not,
 	//this can exhaust all virtual memory, please pay special attentions.
-	bool is_send_buffer_available() const {return send_msg_buffer.size_approx() < ASCS_MAX_MSG_NUM;}
+	bool is_send_buffer_available() const {return send_msg_buffer.size() < ASCS_MAX_MSG_NUM;}
 
 	//don't use the packer but insert into send buffer directly
 	bool direct_send_msg(const InMsgType& msg, bool can_overflow = false) {return direct_send_msg(InMsgType(msg), can_overflow);}
@@ -251,7 +253,7 @@ protected:
 			dispatch_msg();
 		}
 
-		if (temp_msg_buffer.empty() && recv_msg_buffer.size_approx() < ASCS_MAX_MSG_NUM)
+		if (temp_msg_buffer.empty() && recv_msg_buffer.size() < ASCS_MAX_MSG_NUM)
 			do_recv_msg(); //receive msg sequentially, which means second receiving only after first receiving success
 		else
 		{
@@ -260,7 +262,7 @@ protected:
 		}
 	}
 
-	//return false if receiving buffer is empty or dispatching not allowed or io_service stopped
+	//return false if receiving buffer is empty or dispatching not allowed (include io_service stopped)
 	bool dispatch_msg()
 	{
 		if (!dispatching)
@@ -279,7 +281,7 @@ protected:
 		return dispatching;
 	}
 
-	//return false if receiving buffer is empty or dispatching not allowed or io_service stopped
+	//return false if receiving buffer is empty or dispatching not allowed (include io_service stopped)
 	bool do_dispatch_msg()
 	{
 		if (paused_dispatching)

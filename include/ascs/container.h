@@ -163,11 +163,10 @@ public:
 	lock_free_queue() {}
 	lock_free_queue(size_t size) : super(size) {}
 
-	bool empty() const {return 0 == Container::size_approx();}
+	size_t size() const {return this->size_approx();}
+	bool empty() const {return 0 == size();}
+	void clear() {super(std::move(*this));} //not thread-safe
 	using Container::swap;
-
-	//not thread-safe
-	void clear() {super(std::move(*this));}
 
 	void move_items_in(std::list<T>& can) {move_items_in_(can);}
 
@@ -199,8 +198,7 @@ public:
 	queue() {}
 	queue(size_t size) : super(size) {}
 
-	size_t size_approx() const {return Container::size();}
-	bool empty() {typename Lockable::lock_guard lock(*this); return Container::empty();} //thread safe
+	using Container::size;
 	using Container::clear;
 	using Container::swap;
 
@@ -214,11 +212,7 @@ public:
 	bool enqueue_(const T& item) {this->emplace_back(item); return true;}
 	bool enqueue_(T&& item) {this->emplace_back(std::move(item)); return true;}
 	void move_items_in_(std::list<T>& can) {this->splice(std::end(*this), can);}
-	bool try_dequeue_(T& item) {if (Container::empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
-
-protected:
-	using Container::size;
-	using Container::empty;
+	bool try_dequeue_(T& item) {if (this->empty()) return false; item.swap(this->front()); this->pop_front(); return true;}
 };
 
 template<typename T, typename Container> using non_lock_queue = queue<T, Container, dummy_lockable>; //totally not thread safe
