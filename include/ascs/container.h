@@ -147,7 +147,7 @@ private:
 //Container must at least has the following functions:
 // Container() and Container(size_t) constructor
 // move constructor
-// size_approx
+// size_approx (must be thread safe, but doesn't have to be coherent)
 // swap
 // enqueue(const T& item)
 // enqueue(T&& item)
@@ -178,8 +178,8 @@ public:
 
 //Container must at least has the following functions:
 // Container() and Container(size_t) constructor
-// size
-// empty
+// size (must be thread safe, but doesn't have to be coherent, std::list before gcc 5 doesn't meet this requirement, ascs::list does)
+// empty (must be thread safe, but doesn't have to be coherent)
 // clear
 // swap
 // emplace_back(const T& item)
