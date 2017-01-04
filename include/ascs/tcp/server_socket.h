@@ -84,7 +84,7 @@ protected:
 	{
 		if (!this->stopped())
 		{
-			this->last_send_time = this->last_recv_time = time(nullptr);
+			this->last_interact_time = time(nullptr);
 			if (ASCS_HEARTBEAT_INTERVAL > 0)
 				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
 			this->do_recv_msg();
@@ -113,17 +113,21 @@ protected:
 	//otherwise, you can call check_heartbeat with you own logic, but you still need to define a valid ASCS_HEARTBEAT_MAX_ABSENCE macro, please note.
 	bool check_heartbeat(int interval)
 	{
-		this->clean_heartbeat();
-
 		assert(interval > 0);
+
 		auto now = time(nullptr);
-		if (now - std::max(this->last_send_time, this->last_recv_time) >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
+		if (this->clean_heartbeat() > 0)
+		{
+			if (now - this->last_interact_time >= interval) //server never send heartbeat on its own initiative
+				this->send_heartbeat('s');
+
+			this->last_interact_time = now;
+		}
+		else if (now - this->last_interact_time >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
 		{
 			show_info("server link:", "broke unexpectedly.");
 			force_shutdown();
 		}
-		else if (now - this->last_send_time >= interval)
-			this->send_heartbeat('s');
 
 		return this->started(); //always keep this timer
 	}
