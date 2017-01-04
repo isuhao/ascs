@@ -171,9 +171,9 @@ protected:
 		auto now = time(nullptr);
 		if (now - this->last_interact_time >= interval) //client send heartbeat on its own initiative
 			this->send_heartbeat('c');
-		
+
 		if (this->clean_heartbeat() > 0)
-			this->last_interact_time = time(nullptr);
+			this->last_interact_time = now;
 		else if (now - this->last_interact_time >= interval * ASCS_HEARTBEAT_MAX_ABSENCE)
 		{
 			show_info("client link:", "broke unexpectedly.");
