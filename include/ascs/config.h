@@ -78,7 +78,7 @@
  * Support heartbeat (via OOB data), see ASCS_HEARTBEAT_INTERVAL macro for more details.
  * Support scatter-gather buffers when receiving messages, this feature needs modification of i_unpacker, you must explicitly define
  *  ASCS_SCATTERED_RECV_BUFFER macro to open it, this is just for compatibility.
- * Simplify lock-free mechanism (use std::atomic_flag instead of std::atomic_size_t).
+ * Simplify lock-free mechanism and use std::atomic_flag instead of std::atomic_size_t.
  * Optimize container insertion (use series of emplace functions instead).
  * Demo echo_client support alterable number of sending thread (before, it's a hard code 16).
  * Fix bug: In extreme cases, messages may get starved in receive buffer and will not be dispatched until arrival of next message.
@@ -86,7 +86,7 @@
  * Fix bug: Sometimes, connector_base cannot reconnect to the server after link broken.
  *
  * known issues:
- * 1. heartbeat mechanism may not be able to work properly bewteen different system (I just tried win-10 and Ubuntu-15.10).
+ * 1. heartbeat mechanism cannot work properly between windows (at least win-10) and Ubuntu (at least Ubuntu-16.04).
  *
  */
 
