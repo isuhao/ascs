@@ -199,7 +199,7 @@ int main(int argc, const char* argv[])
 				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 			uint64_t total_msg_bytes = link_num; total_msg_bytes *= msg_len; total_msg_bytes *= msg_num;
-			printf("\r100%%\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
+			printf("time spent statistics: %f seconds.\n", begin_time.elapsed());
 			printf("speed: %f(*2) MBps.\n", total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
 
 			delete[] init_msg;

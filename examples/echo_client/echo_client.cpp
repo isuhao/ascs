@@ -241,11 +241,11 @@ void send_msg_one_by_one(echo_client& client, size_t msg_num, size_t msg_len, ch
 			printf("\r%u%%", percent);
 			fflush(stdout);
 		}
-	} while (100 != percent);
+	} while (percent < 100);
 	begin_time.stop();
 
-	printf("\r100%%\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
-	printf("speed: %.0f(*2)kB/s.\n", total_msg_bytes / begin_time.elapsed() / 1024);
+	printf("\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
+	printf("speed: %f(*2) MBps.\n", total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
 }
 
 void send_msg_randomly(echo_client& client, size_t msg_num, size_t msg_len, char msg_fill)
@@ -275,14 +275,14 @@ void send_msg_randomly(echo_client& client, size_t msg_num, size_t msg_len, char
 		}
 	}
 
-	while(client.get_recv_bytes() != total_msg_bytes)
+	while(client.get_recv_bytes() < total_msg_bytes)
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 	begin_time.stop();
 	delete[] buff;
 
-	printf("\r100%%\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
-	printf("speed: %.0f(*2)kB/s.\n", total_msg_bytes / begin_time.elapsed() / 1024);
+	printf("\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
+	printf("speed: %f(*2) MBps.\n", total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
 }
 
 //use up to a specific worker threads to send messages concurrently
@@ -346,12 +346,12 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 			printf("\r%u%%", percent);
 			fflush(stdout);
 		}
-	} while (100 != percent);
+	} while (percent < 100);
 	do_something_to_all(threads, [](auto& t) {t.join();});
 	begin_time.stop();
 
-	printf("\r100%%\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
-	printf("speed: %.0f(*2)kB/s.\n", total_msg_bytes / begin_time.elapsed() / 1024);
+	printf("\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
+	printf("speed: %f(*2) MBps.\n", total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
 }
 
 int main(int argc, const char* argv[])
