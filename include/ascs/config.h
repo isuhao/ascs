@@ -189,9 +189,6 @@ static_assert(ASCS_DELAY_CLOSE >= 0, "delay close duration must be bigger than o
 //after sending buffer became empty, call ascs::socket::on_all_msg_send()
 //#define ASCS_WANT_ALL_MSG_SEND_NOTIFY
 
-//when link down, msgs in receiving buffer (already unpacked) will be discarded.
-//#define ASCS_DISCARD_MSG_WHEN_LINK_DOWN
-
 //max number of objects object_pool can hold.
 #ifndef ASCS_MAX_OBJECT_NUM
 #define ASCS_MAX_OBJECT_NUM	4096

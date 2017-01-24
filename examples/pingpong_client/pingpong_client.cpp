@@ -69,7 +69,7 @@ protected:
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 	virtual bool on_msg(out_msg_type& msg) {handle_msg(msg); return true;}
 #endif
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {handle_msg(msg); return true;}
+	virtual bool on_msg_handle(out_msg_type& msg) {handle_msg(msg); return true;}
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 	//congestion control, method #1, the peer needs its own congestion control too.

@@ -89,7 +89,7 @@ public:
 
 	fl_type get_rest_size() const {return _data_len;}
 
-	virtual void reset_state() {_file = nullptr; delete[] buffer; buffer = nullptr; _data_len = 0;}
+	virtual void reset() {_file = nullptr; delete[] buffer; buffer = nullptr; _data_len = 0;}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		assert(_data_len >= (fl_type) bytes_transferred && bytes_transferred > 0);

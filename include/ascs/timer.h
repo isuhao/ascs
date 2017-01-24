@@ -115,8 +115,6 @@ public:
 	DO_SOMETHING_TO_ONE(timer_can)
 
 protected:
-	void reset() {object::reset();}
-
 	void start_timer(timer_cinfo& ti)
 	{
 		assert(timer_info::TIMER_OK == ti.status);

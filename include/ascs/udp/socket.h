@@ -38,15 +38,13 @@ public:
 
 	socket_base(asio::io_service& io_service_) : super(io_service_), unpacker_(std::make_shared<Unpacker>()) {}
 
-	//reset all, be ensure that there's no any operations performed on this udp::socket when invoke it
-	//please note, when reuse this udp::socket, object_pool will invoke reset(), child must re-write this to initialize
-	//all member variables, and then do not forget to invoke udp::socket::reset() to initialize father's
-	//member variables
+	virtual bool is_ready() {return this->lowest_layer().is_open();}
+
+	//reset all, be ensure that there's no any operations performed on this socket when invoke it
+	//notice, when reusing this socket, object_pool will invoke reset(), child must re-write this to initialize
+	//all member variables, and then do not forget to invoke father's reset() to initialize father's member variables
 	virtual void reset()
 	{
-		reset_state();
-		super::reset();
-
 		asio::error_code ec;
 		this->lowest_layer().open(local_addr.protocol(), ec); assert(!ec);
 #ifndef ASCS_NOT_REUSE_ADDRESS
@@ -55,12 +53,10 @@ public:
 		this->lowest_layer().bind(local_addr, ec); assert(!ec);
 		if (ec)
 			unified_out::error_out("bind failed.");
-	}
 
-	void reset_state()
-	{
-		unpacker_->reset_state();
-		super::reset_state();
+		last_send_msg.clear();
+		unpacker_->reset();
+		super::reset();
 	}
 
 	bool set_local_addr(unsigned short port, const std::string& ip = std::string())
@@ -109,20 +105,14 @@ public:
 protected:
 	virtual bool do_start()
 	{
-		if (!this->stopped())
-		{
-			do_recv_msg();
-			return true;
-		}
-
-		return false;
+		do_recv_msg();
+		return true;
 	}
 
-	//ascs::socket will guarantee not call this function in more than one thread concurrently.
-	//return false if send buffer is empty or sending not allowed or io_service stopped
+	//return false if send buffer is empty
 	virtual bool do_send_msg()
 	{
-		if (!this->send_msg_buffer.empty() && is_send_allowed() && this->send_msg_buffer.try_dequeue(last_send_msg))
+		if (this->send_msg_buffer.try_dequeue(last_send_msg))
 		{
 			this->stat.send_delay_sum += statistic::now() - last_send_msg.begin_time;
 
@@ -147,9 +137,6 @@ protected:
 			this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->recv_handler(ec, bytes_transferred);}));
 	}
 
-	virtual bool is_send_allowed() {return this->lowest_layer().is_open() && super::is_send_allowed();}
-	//can send data or not(just put into send buffer)
-
 	virtual void on_recv_error(const asio::error_code& ec)
 	{
 		if (asio::error::operation_aborted != ec)
@@ -160,7 +147,7 @@ protected:
 	virtual bool on_msg(out_msg_type& msg) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
 #endif
 
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
+	virtual bool on_msg_handle(out_msg_type& msg) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
 
 	void shutdown()
 	{
@@ -219,7 +206,7 @@ private:
 
 		//send msg sequentially, which means second sending only after first sending success
 		//on windows, sending a msg to addr_any may cause errors, please note
-		//for UDP, sending error will not stop subsequence sendings.
+		//for UDP, sending error will not stop subsequent sendings.
 		if (!do_send_msg())
 		{
 			this->sending = false;

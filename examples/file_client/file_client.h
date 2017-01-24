@@ -75,7 +75,7 @@ protected:
 #endif
 	//we will change unpacker at runtime, this operation can only be done in on_msg(), reset() or constructor,
 	//so we must guarantee all messages to be handled in on_msg()
-	//virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {handle_msg(msg); return true;}
+	//virtual bool on_msg_handle(out_msg_type& msg) {handle_msg(msg); return true;}
 	//msg handling end
 
 private:

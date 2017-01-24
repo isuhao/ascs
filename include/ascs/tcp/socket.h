@@ -34,7 +34,7 @@ protected:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	enum shutdown_states {NONE, FORCE, GRACEFUL};
+	enum link_status {CONNECTED, FORCE_SHUTTING_DOWN, GRACEFUL_SHUTTING_DOWN, BROKEN};
 
 	socket_base(asio::io_service& io_service_) : super(io_service_) {first_init();}
 	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg) {first_init();}
@@ -42,23 +42,21 @@ protected:
 	//helper function, just call it in constructor
 	void first_init()
 	{
+		status = link_status::BROKEN;
 		unpacker_ = std::make_shared<Unpacker>();
-		shutdown_state = shutdown_states::NONE;
 		shutdown_atomic.clear(std::memory_order_relaxed);
 	}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
+	virtual bool is_ready() {return is_connected();}
 
 	//reset all, be ensure that there's no any operations performed on this tcp::socket_base when invoke it
-	void reset() {reset_state(); shutdown_state = shutdown_states::NONE; super::reset();}
-	void reset_state()
-	{
-		unpacker_->reset_state();
-		super::reset_state();
-	}
+	void reset() {status = link_status::BROKEN; unpacker_->reset(); super::reset();}
 
-	bool is_shutting_down() const {return shutdown_states::NONE != shutdown_state;}
+	bool is_broken() const {return link_status::BROKEN == status;}
+	bool is_connected() const {return link_status::CONNECTED == status;}
+	bool is_shutting_down() const {return link_status::FORCE_SHUTTING_DOWN == status || link_status::GRACEFUL_SHUTTING_DOWN == status;}
 
 	//get or change the unpacker at runtime
 	//changing unpacker at runtime is not thread-safe, this operation can only be done in on_msg(), reset() or constructor, please pay special attention
@@ -80,13 +78,18 @@ public:
 	///////////////////////////////////////////////////
 
 protected:
-	void force_shutdown() {if (shutdown_states::FORCE != shutdown_state) shutdown();}
+	void force_shutdown() {if (link_status::FORCE_SHUTTING_DOWN != status) shutdown();}
 	bool graceful_shutdown(bool sync) //will block until shutdown success or time out if sync equal to true
 	{
 		if (is_shutting_down())
 			return false;
-		else
-			shutdown_state = shutdown_states::GRACEFUL;
+		else if (!is_connected())
+		{
+			shutdown();
+			return false;
+		}
+
+		status = link_status::GRACEFUL_SHUTTING_DOWN;
 
 		asio::error_code ec;
 		this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_send, ec);
@@ -95,8 +98,7 @@ protected:
 			shutdown();
 			return false;
 		}
-
-		if (sync)
+		else if (sync)
 		{
 			auto loop_num = ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION * 100; //seconds to 10 milliseconds
 			while (--loop_num >= 0 && is_shutting_down())
@@ -111,46 +113,39 @@ protected:
 		return !sync;
 	}
 
-	//ascs::socket will guarantee not call this function in more than one thread concurrently.
-	//return false if send buffer is empty or sending not allowed
+	//return false if send buffer is empty
 	virtual bool do_send_msg()
 	{
-		if (is_send_allowed())
+		std::list<asio::const_buffer> bufs;
 		{
-			std::list<asio::const_buffer> bufs;
-			{
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
-				const size_t max_send_size = 0;
+			const size_t max_send_size = 0;
 #else
-				const size_t max_send_size = asio::detail::default_max_transfer_size;
+			const size_t max_send_size = asio::detail::default_max_transfer_size;
 #endif
-				size_t size = 0;
-				typename super::in_msg msg;
-				auto end_time = statistic::now();
+			size_t size = 0;
+			typename super::in_msg msg;
+			auto end_time = statistic::now();
 
-				typename super::in_container_type::lock_guard lock(this->send_msg_buffer);
-				while (this->send_msg_buffer.try_dequeue_(msg))
-				{
-					this->stat.send_delay_sum += end_time - msg.begin_time;
-					size += msg.size();
-					last_send_msg.emplace_back(std::move(msg));
-					bufs.emplace_back(last_send_msg.back().data(), last_send_msg.back().size());
-					if (size >= max_send_size)
-						break;
-				}
-			}
-
-			if (!bufs.empty())
+			typename super::in_container_type::lock_guard lock(this->send_msg_buffer);
+			while (this->send_msg_buffer.try_dequeue_(msg))
 			{
-				last_send_msg.front().restart();
-				asio::async_write(this->next_layer(), bufs,
-					this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
-
-				return true;
+				this->stat.send_delay_sum += end_time - msg.begin_time;
+				size += msg.size();
+				last_send_msg.emplace_back(std::move(msg));
+				bufs.emplace_back(last_send_msg.back().data(), last_send_msg.back().size());
+				if (size >= max_send_size)
+					break;
 			}
 		}
 
-		return false;
+		if (bufs.empty())
+			return false;
+
+		last_send_msg.front().restart();
+		asio::async_write(this->next_layer(), bufs,
+			this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->send_handler(ec, bytes_transferred);}));
+		return true;
 	}
 
 	virtual void do_recv_msg()
@@ -163,9 +158,6 @@ protected:
 			this->make_handler_error_size([this](const auto& ec, auto bytes_transferred) {this->recv_handler(ec, bytes_transferred);}));
 	}
 
-	virtual bool is_send_allowed() {return !is_shutting_down() && super::is_send_allowed();}
-	//can send data or not(just put into send buffer)
-
 	//msg can not be unpacked
 	//the link is still available, so don't need to shutdown this tcp::socket_base at both client and server endpoint
 	virtual void on_unpack_error() = 0;
@@ -174,24 +166,7 @@ protected:
 	virtual bool on_msg(out_msg_type& msg) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
 #endif
 
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
-
-	void shutdown()
-	{
-		scope_atomic_lock lock(shutdown_atomic);
-		if (!lock.locked())
-			return;
-
-		shutdown_state = shutdown_states::FORCE;
-		this->stop_all_timer();
-		this->close();
-
-		if (this->lowest_layer().is_open())
-		{
-			asio::error_code ec;
-			this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-		}
-	}
+	virtual bool on_msg_handle(out_msg_type& msg) {unified_out::debug_out("recv(" ASCS_SF "): %s", msg.size(), msg.data()); return true;}
 
 	int clean_heartbeat()
 	{
@@ -227,6 +202,23 @@ protected:
 	void send_heartbeat(const char c) {send(this->lowest_layer().native_handle(), &c, 1, MSG_OOB);}
 
 private:
+	void shutdown()
+	{
+		scope_atomic_lock lock(shutdown_atomic);
+		if (!lock.locked())
+			return;
+
+		status = link_status::FORCE_SHUTTING_DOWN;
+		this->stop_all_timer();
+		this->close();
+
+		if (this->lowest_layer().is_open())
+		{
+			asio::error_code ec;
+			this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+		}
+	}
+
 	void recv_handler(const asio::error_code& ec, size_t bytes_transferred)
 	{
 		if (!ec && bytes_transferred > 0)
@@ -252,11 +244,7 @@ private:
 			this->handle_msg();
 
 			if (!unpack_ok)
-			{
-				on_unpack_error();
-				//reset unpacker's state after on_unpack_error(), so user can get the left half-baked msg in on_unpack_error()
-				unpacker_->reset_state();
-			}
+				on_unpack_error(); //the user will decide whether to reset the unpacker or not in this callback
 		}
 		else
 			this->on_recv_error(ec);
@@ -297,7 +285,7 @@ protected:
 	list<typename super::in_msg> last_send_msg;
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
 
-	volatile shutdown_states shutdown_state;
+	volatile link_status status;
 	std::atomic_flag shutdown_atomic;
 
 	//heartbeat

@@ -21,7 +21,6 @@ namespace ascs
 class object
 {
 protected:
-	object(asio::io_service& _io_service_) : io_service_(_io_service_) {reset();}
 	virtual ~object() {}
 
 public:
@@ -46,9 +45,7 @@ public:
 	inline void set_async_calling(bool) {}
 
 protected:
-	void reset() {async_call_indicator = std::make_shared<char>('\0');}
-
-protected:
+	object(asio::io_service& _io_service_) : io_service_(_io_service_), async_call_indicator(std::make_shared<char>('0')) {}
 	std::shared_ptr<char> async_call_indicator;
 #else
 	template<typename F> void post(F&& handler) {io_service_.post(std::move(handler));}
@@ -65,9 +62,7 @@ protected:
 	inline void set_async_calling(bool value) {async_calling = value;}
 
 protected:
-	void reset() {set_async_calling(false);}
-
-protected:
+	object(asio::io_service& _io_service_) : io_service_(_io_service_), async_calling(false) {}
 	bool async_calling;
 #endif
 

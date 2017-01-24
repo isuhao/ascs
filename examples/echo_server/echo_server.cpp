@@ -43,8 +43,6 @@ using namespace ascs::ext::tcp;
 #define RESTART_COMMAND	"restart"
 #define LIST_ALL_CLIENT	"list_all_client"
 #define LIST_STATUS		"status"
-#define SUSPEND_COMMAND	"suspend"
-#define RESUME_COMMAND	"resume"
 
 //demonstrate how to use custom packer
 //under the default behavior, each ascs::tcp::socket has their own packer, and cause memory waste
@@ -122,7 +120,7 @@ protected:
 		return re;
 	}
 
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down)
+	virtual bool on_msg_handle(out_msg_type& msg)
 	{
 		auto re = send_msg(msg.data(), msg.size());
 		if (re)
@@ -137,7 +135,7 @@ protected:
 	}
 #else
 	//if we used receiving buffer, congestion control will become much simpler, like this:
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {return send_msg(msg.data(), msg.size());}
+	virtual bool on_msg_handle(out_msg_type& msg) {return send_msg(msg.data(), msg.size());}
 #endif
 	//msg handling end
 };
@@ -216,11 +214,6 @@ int main(int argc, const char* argv[])
 			puts("");
 			puts(echo_server_.get_statistic().to_string().data());
 		}
-		//the following two commands demonstrate how to suspend msg dispatching, no matter recv buffer been used or not
-		else if (SUSPEND_COMMAND == str)
-			echo_server_.do_something_to_all([](const auto& item) {item->suspend_dispatch_msg(true);});
-		else if (RESUME_COMMAND == str)
-			echo_server_.do_something_to_all([](const auto& item) {item->suspend_dispatch_msg(false);});
 		else if (LIST_ALL_CLIENT == str)
 		{
 			puts("clients from normal server:");

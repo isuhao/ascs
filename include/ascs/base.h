@@ -148,7 +148,7 @@ protected:
 	virtual ~i_packer() {}
 
 public:
-	virtual void reset_state() {}
+	virtual void reset() {}
 	virtual msg_type pack_msg(const char* const pstr[], const size_t len[], size_t num, bool native = false) = 0;
 	virtual char* raw_data(msg_type& msg) const {return nullptr;}
 	virtual const char* raw_data(msg_ctype& msg) const {return nullptr;}
@@ -190,7 +190,7 @@ namespace tcp
 		virtual ~i_unpacker() {}
 
 	public:
-		virtual void reset_state() = 0;
+		virtual void reset() = 0;
 		virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can) = 0;
 		virtual size_t completion_condition(const asio::error_code& ec, size_t bytes_transferred) = 0;
 		virtual buffer_type prepare_next_recv() = 0;
@@ -229,7 +229,7 @@ namespace udp
 		virtual ~i_unpacker() {}
 
 	public:
-		virtual void reset_state() {}
+		virtual void reset() {}
 		virtual msg_type parse_msg(size_t bytes_transferred) = 0;
 		virtual buffer_type prepare_next_recv() = 0;
 	};
@@ -438,7 +438,7 @@ template<typename _Predicate> void NAME(const _Predicate& __pred) const {for (au
 //used by both TCP and UDP
 #define SAFE_SEND_MSG_CHECK \
 { \
-	if (!this->is_send_allowed()) return false; \
+	if (this->stopped() || !this->is_ready()) return false; \
 	std::this_thread::sleep_for(std::chrono::milliseconds(50)); \
 }
 
