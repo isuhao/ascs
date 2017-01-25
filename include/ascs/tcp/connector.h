@@ -59,12 +59,10 @@ public:
 	void force_shutdown(bool reconnect = false)
 	{
 		if (super::link_status::FORCE_SHUTTING_DOWN != this->status)
-		{
 			show_info("client link:", "been shut down.");
-			need_reconnect = reconnect;
 
-			super::force_shutdown();
-		}
+		need_reconnect = reconnect;
+		super::force_shutdown();
 	}
 
 	//sync must be false if you call graceful_shutdown in on_msg
@@ -73,14 +71,12 @@ public:
 	//this function is not thread safe, please note.
 	void graceful_shutdown(bool reconnect = false, bool sync = true)
 	{
-		if (this->is_shutting_down())
-			return;
-		else if (!is_connected())
+		if (this->is_broken())
 			return force_shutdown(reconnect);
+		else if (!this->is_shutting_down())
+			show_info("client link:", "being shut down gracefully.");
 
-		show_info("client link:", "being shut down gracefully.");
 		need_reconnect = reconnect;
-
 		if (super::graceful_shutdown(sync))
 			this->set_timer(TIMER_ASYNC_SHUTDOWN, 10, [this](auto id)->bool {return this->async_shutdown_handler(id, ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION * 100);});
 	}

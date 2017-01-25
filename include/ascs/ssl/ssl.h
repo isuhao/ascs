@@ -39,9 +39,10 @@ public:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx), authorized_(false) {}
+	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx), authorized_(false) {this->need_reconnect = false;}
 
-	virtual void reset() {authorized_ = false; super::reset();}
+	virtual bool is_ready() {return authorized_ && super::is_ready();}
+	virtual void reset() {authorized_ = false; super::reset(); this->need_reconnect = false;}
 	bool authorized() const {return authorized_;}
 
 	void disconnect(bool reconnect = false) {force_shutdown(reconnect);}
@@ -54,35 +55,38 @@ public:
 			super::force_shutdown(false);
 	}
 
+	//ssl only support sync mode, sync parameter will be ignored
 	void graceful_shutdown(bool reconnect = false, bool sync = true)
 	{
 		if (reconnect)
 			unified_out::error_out("asio::ssl::stream not support reconnecting!");
 
 		if (!shutdown_ssl())
-			super::graceful_shutdown(false, sync);
+			super::force_shutdown(false);
 	}
 
 protected:
-	virtual bool do_start() //connect or receive
+	virtual bool do_start() //connect or handshake
 	{
-		if (!this->stopped())
-		{
-			if (this->reconnecting && !this->is_connected())
-				this->lowest_layer().async_connect(this->server_addr, this->make_handler_error([this](const auto& ec) {this->connect_handler(ec);}));
-			else if (!authorized_)
-				this->next_layer().async_handshake(asio::ssl::stream_base::client, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
-			else
-				this->do_recv_msg();
+		if (!this->is_connected())
+			this->lowest_layer().async_connect(this->server_addr, this->make_handler_error([this](const auto& ec) {this->connect_handler(ec);}));
+		else if (!authorized_)
+			this->next_layer().async_handshake(asio::ssl::stream_base::client, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
+		else
+			super::do_start();
 
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
-	virtual void on_unpack_error() {authorized_ = false; super::on_unpack_error();}
-	virtual void on_recv_error(const asio::error_code& ec) {authorized_ = false; super::on_recv_error(ec);}
+	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
+	virtual void on_recv_error(const asio::error_code& ec)
+	{
+		authorized_ = false;
+
+		std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
+		super::on_recv_error(ec);
+	}
+
 	virtual void on_handshake(const asio::error_code& ec)
 	{
 		if (!ec)
@@ -90,20 +94,20 @@ protected:
 		else
 			unified_out::error_out("handshake failed: %s", ec.message().data());
 	}
-	virtual bool is_send_allowed() {return authorized() && super::is_send_allowed();}
 
 	bool shutdown_ssl()
 	{
 		bool re = false;
-		if (!this->is_shutting_down() && authorized_)
+		if (is_ready())
 		{
 			this->show_info("ssl client link:", "been shut down.");
-			this->shutdown_state = super::shutdown_states::GRACEFUL;
-			this->reconnecting = false;
+			this->status = super::link_status::GRACEFUL_SHUTTING_DOWN;
 			authorized_ = false;
 
 			asio::error_code ec;
+			std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
 			this->next_layer().shutdown(ec);
+			lock.unlock();
 
 			re = !ec;
 		}
@@ -116,8 +120,7 @@ private:
 	{
 		if (!ec)
 		{
-			this->connected = this->reconnecting = false;
-			this->reset_state();
+			this->status = super::link_status::CONNECTED;
 			this->on_connect();
 			do_start();
 		}
@@ -131,7 +134,6 @@ private:
 		if (!ec)
 		{
 			authorized_ = true;
-			this->send_msg(); //send buffer may have msgs, send them
 			do_start();
 		}
 		else
@@ -140,6 +142,7 @@ private:
 
 protected:
 	bool authorized_;
+	std::shared_mutex shutdown_mutex;
 };
 
 template<typename Object>
@@ -167,60 +170,98 @@ protected:
 template<typename Packer, typename Unpacker, typename Server = i_server, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
 	template<typename, typename> class InQueue = ASCS_INPUT_QUEUE, template<typename> class InContainer = ASCS_INPUT_CONTAINER,
 	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename> class OutContainer = ASCS_OUTPUT_CONTAINER>
-using server_socket_base = tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer>;
-
-template<typename Socket, typename Pool = object_pool<Socket>, typename Server = i_server>
-class server_base : public tcp::server_base<Socket, Pool, Server>
+class server_socket_base : public tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer>
 {
 protected:
-	typedef tcp::server_base<Socket, Pool, Server> super;
+	typedef tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer> super;
 
 public:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	server_base(service_pump& service_pump_, asio::ssl::context::method m) : super(service_pump_, m) {}
+	template<typename Arg>
+	server_socket_base(Server& server_, Arg& arg) : super(server_, arg), authorized_(false) {}
+
+	virtual bool is_ready() {return authorized_ && super::is_ready();}
+	virtual void reset() {authorized_ = false; super::reset();}
+	bool authorized() const {return authorized_;}
+
+	void disconnect() {force_shutdown();}
+	void force_shutdown() {if (!shutdown_ssl()) super::force_shutdown();}
+	//ssl only support sync mode, sync parameter will be ignored
+	void graceful_shutdown(bool sync = false) {if (!shutdown_ssl()) super::force_shutdown();}
 
 protected:
-	virtual void on_handshake(const asio::error_code& ec, typename server_base::object_ctype& client_ptr)
+	virtual bool do_start() //handshake
 	{
-		if (!ec)
-			client_ptr->show_info("handshake with", "success.");
+		if (!authorized_)
+			this->next_layer().async_handshake(asio::ssl::stream_base::server, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
 		else
-		{
-			std::string error_info = "failed: ";
-			error_info += ec.message().data();
-			client_ptr->show_info("handshake with", error_info.data());
-		}
+			super::do_start();
+
+		return true;
 	}
 
-	virtual void start_next_accept()
+	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
+	virtual void on_recv_error(const asio::error_code& ec)
 	{
-		auto client_ptr = this->create_object(*this);
-		this->acceptor.async_accept(client_ptr->lowest_layer(), [client_ptr, this](const auto& ec) {this->accept_handler(ec, client_ptr);});
+		authorized_ = false;
+
+		std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
+		super::on_recv_error(ec);
+	}
+
+	virtual void on_handshake(const asio::error_code& ec)
+	{
+		if (!ec)
+			unified_out::info_out("handshake success.");
+		else
+			unified_out::error_out("handshake failed: %s", ec.message().data());
+	}
+
+	bool shutdown_ssl()
+	{
+		bool re = false;
+		if (is_ready())
+		{
+			this->show_info("ssl server link:", "been shut down.");
+			this->status = super::link_status::GRACEFUL_SHUTTING_DOWN;
+			authorized_ = false;
+
+			asio::error_code ec;
+			std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
+			this->next_layer().shutdown(ec);
+			lock.unlock();
+
+			re = !ec;
+		}
+
+		return re;
 	}
 
 private:
-	void accept_handler(const asio::error_code& ec, typename server_base::object_ctype& client_ptr)
+	void handshake_handler(const asio::error_code& ec)
 	{
+		on_handshake(ec);
 		if (!ec)
 		{
-			if (this->on_accept(client_ptr))
-				client_ptr->next_layer().async_handshake(asio::ssl::stream_base::server, [client_ptr, this](const auto& ec) {this->handshake_handler(ec, client_ptr);});
-
-			start_next_accept();
+			authorized_ = true;
+			do_start();
 		}
 		else
-			this->stop_listen();
+		{
+			force_shutdown();
+			this->server.del_client(this->shared_from_this());
+		}
 	}
 
-	void handshake_handler(const asio::error_code& ec, typename server_base::object_ctype& client_ptr)
-	{
-		this->on_handshake(ec, client_ptr);
-		if (!ec && this->add_client(client_ptr))
-			client_ptr->start();
-	}
+protected:
+	bool authorized_;
+	std::shared_mutex shutdown_mutex;
 };
+
+template<typename Socket, typename Pool = object_pool<Socket>, typename Server = i_server>
+using server_base = tcp::server_base<Socket, Pool, Server>;
 
 }} //namespace
 

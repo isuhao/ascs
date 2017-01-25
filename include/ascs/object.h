@@ -45,7 +45,7 @@ public:
 	inline void set_async_calling(bool) {}
 
 protected:
-	object(asio::io_service& _io_service_) : io_service_(_io_service_), async_call_indicator(std::make_shared<char>('0')) {}
+	object(asio::io_service& _io_service_) : async_call_indicator(std::make_shared<char>('0')), io_service_(_io_service_) {}
 	std::shared_ptr<char> async_call_indicator;
 #else
 	template<typename F> void post(F&& handler) {io_service_.post(std::move(handler));}
@@ -62,7 +62,7 @@ protected:
 	inline void set_async_calling(bool value) {async_calling = value;}
 
 protected:
-	object(asio::io_service& _io_service_) : io_service_(_io_service_), async_calling(false) {}
+	object(asio::io_service& _io_service_) : async_calling(false), io_service_(_io_service_) {}
 	bool async_calling;
 #endif
 

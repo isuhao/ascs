@@ -54,6 +54,7 @@ public:
 	//reset all, be ensure that there's no any operations performed on this tcp::socket_base when invoke it
 	void reset() {status = link_status::BROKEN; unpacker_->reset(); super::reset();}
 
+	//SOCKET status
 	bool is_broken() const {return link_status::BROKEN == status;}
 	bool is_connected() const {return link_status::CONNECTED == status;}
 	bool is_shutting_down() const {return link_status::FORCE_SHUTTING_DOWN == status || link_status::GRACEFUL_SHUTTING_DOWN == status;}
@@ -83,7 +84,7 @@ protected:
 	{
 		if (is_shutting_down())
 			return false;
-		else if (!is_connected())
+		else if (is_broken())
 		{
 			shutdown();
 			return false;
@@ -98,19 +99,19 @@ protected:
 			shutdown();
 			return false;
 		}
-		else if (sync)
+		else if (!sync)
+			return true; //async
+
+		auto loop_num = ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION * 100; //seconds to 10 milliseconds
+		while (--loop_num >= 0 && link_status::GRACEFUL_SHUTTING_DOWN == status)
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		if (loop_num < 0) //graceful shutdown is impossible
 		{
-			auto loop_num = ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION * 100; //seconds to 10 milliseconds
-			while (--loop_num >= 0 && is_shutting_down())
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			if (loop_num < 0) //graceful shutdown is impossible
-			{
-				unified_out::info_out("failed to graceful shutdown within %d seconds", ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION);
-				shutdown();
-			}
+			unified_out::info_out("failed to graceful shutdown within %d seconds", ASCS_GRACEFUL_SHUTDOWN_MAX_DURATION);
+			shutdown();
 		}
 
-		return !sync;
+		return false;
 	}
 
 	//return false if send buffer is empty

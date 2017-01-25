@@ -44,7 +44,7 @@ public:
 	void disconnect() {force_shutdown();}
 	void force_shutdown()
 	{
-		if (this->is_connected() || super::link_status::GRACEFUL_SHUTTING_DOWN == this->status)
+		if (super::link_status::FORCE_SHUTTING_DOWN != this->status)
 			show_info("server link:", "been shut down.");
 
 		super::force_shutdown();
@@ -56,7 +56,9 @@ public:
 	//this function is not thread safe, please note.
 	void graceful_shutdown(bool sync = false)
 	{
-		if (!this->is_shutting_down())
+		if (this->is_broken())
+			return force_shutdown();
+		else if (!this->is_shutting_down())
 			show_info("server link:", "being shut down gracefully.");
 
 		if (super::graceful_shutdown(sync))
@@ -86,6 +88,7 @@ protected:
 		this->last_interact_time = time(nullptr);
 		if (ASCS_HEARTBEAT_INTERVAL > 0)
 			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
+		this->send_msg(); //send buffer may have msgs, send them
 		this->do_recv_msg();
 
 		return true;
