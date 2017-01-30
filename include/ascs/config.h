@@ -90,7 +90,7 @@
  * Fix bug: Sometimes, connector_base cannot reconnect to the server after link broken.
  *
  * 2017.3.x		version 1.2.0
- * Not support pausing message sending and dispatching any more, because they bring complexity and race condition, 
+ * Not support pausing message sending and dispatching any more, because they bring complexity and race condition,
  *  and are not very useful.
  * Drop ASCS_DISCARD_MSG_WHEN_LINK_DOWN macro and related logic, because it brings complexity and race condition,
  *  and are not very useful.
@@ -100,7 +100,7 @@
  * Make ssl shutting down thread safe.
  * Expand enum tcp::socket::shutdown_states, now it's able to represent all SOCKET status (connected, shutting down and broken),
  *  so rename it to link_status.
- * 
+ *
  */
 
 #ifndef _ASCS_CONFIG_H_
