@@ -79,13 +79,13 @@ public:
 	typename Socket::lowest_layer_type& lowest_layer() {return next_layer().lowest_layer();}
 	const typename Socket::lowest_layer_type& lowest_layer() const {return next_layer().lowest_layer();}
 
-	virtual bool obsoleted() {return !started() && !is_async_calling();}
+	virtual bool obsoleted() {return !started_ && !is_async_calling();}
 	virtual bool is_ready() = 0; //is ready for sending msg (asio::async_write) and receiving msg (asio::async_read)
 
 	bool started() const {return started_;}
 	void start()
 	{
-		if (!started_ && !stopped())
+		if (!started_ && !stopped() && !is_timer(TIMER_DELAY_CLOSE))
 		{
 			scope_atomic_lock lock(start_atomic);
 			if (!started_ && lock.locked())
@@ -319,9 +319,7 @@ private:
 		case TIMER_DELAY_CLOSE:
 			if (!is_last_async_call())
 			{
-				stop_all_timer();
-				revive_timer(TIMER_DELAY_CLOSE);
-
+				stop_all_timer(TIMER_DELAY_CLOSE);
 				return true;
 			}
 			else if (lowest_layer().is_open())
@@ -331,7 +329,6 @@ private:
 			}
 			on_close();
 			set_async_calling(false);
-
 			break;
 		default:
 			assert(false);
