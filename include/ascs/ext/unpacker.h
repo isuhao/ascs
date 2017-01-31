@@ -32,7 +32,7 @@ namespace ascs { namespace ext {
 class unpacker : public tcp::i_unpacker<std::string>
 {
 public:
-	unpacker() {reset_state();}
+	unpacker() {reset();}
 	size_t current_msg_length() const {return cur_msg_len;} //current msg's total length, -1 means not available
 
 	bool parse_msg(size_t bytes_transferred, std::list<std::pair<const char*, size_t>>& msg_can)
@@ -74,7 +74,7 @@ public:
 	}
 
 public:
-	virtual void reset_state() {cur_msg_len = -1; remain_len = 0;}
+	virtual void reset() {cur_msg_len = -1; remain_len = 0;}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		std::list<std::pair<const char*, size_t>> msg_pos_can;
@@ -149,7 +149,7 @@ protected:
 	typedef ascs::tcp::i_unpacker<T> super;
 
 public:
-	virtual void reset_state() {unpacker_.reset_state();}
+	virtual void reset() {unpacker_.reset();}
 	virtual bool parse_msg(size_t bytes_transferred, typename super::container_type& msg_can)
 	{
 		unpacker::container_type tmp_can;
@@ -199,11 +199,11 @@ protected:
 class non_copy_unpacker : public tcp::i_unpacker<basic_buffer>
 {
 public:
-	non_copy_unpacker() {reset_state();}
+	non_copy_unpacker() {reset();}
 	size_t current_msg_length() const {return raw_buff.size();} //current msg's total length(not include the head), 0 means not available
 
 public:
-	virtual void reset_state() {raw_buff.clear(); step = 0;}
+	virtual void reset() {raw_buff.clear(); step = 0;}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		if (0 == step) //the head been received
@@ -286,7 +286,7 @@ public:
 	size_t fixed_length() const {return _fixed_length;}
 
 public:
-	virtual void reset_state() {}
+	virtual void reset() {}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		if (bytes_transferred != raw_buff.size())
@@ -318,7 +318,7 @@ private:
 class prefix_suffix_unpacker : public tcp::i_unpacker<std::string>
 {
 public:
-	prefix_suffix_unpacker() {reset_state();}
+	prefix_suffix_unpacker() {reset();}
 
 	void prefix_suffix(const std::string& prefix, const std::string& suffix) {assert(!suffix.empty() && prefix.size() + suffix.size() < ASCS_MSG_BUFFER_SIZE); _prefix = prefix; _suffix = suffix;}
 	const std::string& prefix() const {return _prefix;}
@@ -367,7 +367,7 @@ public:
 	}
 
 public:
-	virtual void reset_state() {first_msg_len = -1; remain_len = 0;}
+	virtual void reset() {first_msg_len = -1; remain_len = 0;}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		//length + msg
@@ -435,7 +435,7 @@ private:
 class stream_unpacker : public tcp::i_unpacker<std::string>
 {
 public:
-	virtual void reset_state() {}
+	virtual void reset() {}
 	virtual bool parse_msg(size_t bytes_transferred, container_type& msg_can)
 	{
 		if (0 == bytes_transferred)

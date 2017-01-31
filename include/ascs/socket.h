@@ -38,8 +38,8 @@ protected:
 	{
 		_id = -1;
 		packer_ = std::make_shared<Packer>();
-		sending = paused_sending = false;
-		dispatching = paused_dispatching = false;
+		sending = false;
+		dispatching = false;
 		congestion_controlling = false;
 		started_ = false;
 		send_atomic.clear(std::memory_order_relaxed);
@@ -49,28 +49,20 @@ protected:
 
 	void reset()
 	{
-		reset_state();
+		packer_->reset();
 		clear_buffer();
+		sending = false;
+		dispatching = false;
+		congestion_controlling = false;
 		stat.reset();
-
-		timer::reset();
-	}
-
-	void reset_state()
-	{
-		packer_->reset_state();
-
-		sending = paused_sending = false;
-		dispatching = paused_dispatching = congestion_controlling = false;
 	}
 
 	void clear_buffer()
 	{
+		last_dispatch_msg.clear();
 		send_msg_buffer.clear();
 		recv_msg_buffer.clear();
 		temp_msg_buffer.clear();
-
-		last_dispatch_msg.clear();
 	}
 
 public:
@@ -87,12 +79,13 @@ public:
 	typename Socket::lowest_layer_type& lowest_layer() {return next_layer().lowest_layer();}
 	const typename Socket::lowest_layer_type& lowest_layer() const {return next_layer().lowest_layer();}
 
-	virtual bool obsoleted() {return !dispatching && !started() && !is_async_calling();}
+	virtual bool obsoleted() {return !started_ && !is_async_calling();}
+	virtual bool is_ready() = 0; //is ready for sending msg (asio::async_write) and receiving msg (asio::async_read)
 
 	bool started() const {return started_;}
 	void start()
 	{
-		if (!started_)
+		if (!started_ && !stopped() && !is_timer(TIMER_DELAY_CLOSE))
 		{
 			scope_atomic_lock lock(start_atomic);
 			if (!started_ && lock.locked())
@@ -103,7 +96,7 @@ public:
 	//return false if send buffer is empty or sending not allowed
 	bool send_msg()
 	{
-		if (!sending)
+		if (!sending && !stopped() && is_ready())
 		{
 			scope_atomic_lock lock(send_atomic);
 			if (!sending && lock.locked())
@@ -119,13 +112,7 @@ public:
 		return sending;
 	}
 
-	void suspend_send_msg(bool suspend) {if (!(paused_sending = suspend)) send_msg();}
-	bool suspend_send_msg() const {return paused_sending;}
 	bool is_sending_msg() const {return sending;}
-
-	//for a socket that has been shut down, resuming message dispatching will not take effect for left messages.
-	void suspend_dispatch_msg(bool suspend) {if (!(paused_dispatching = suspend)) dispatch_msg();}
-	bool suspend_dispatch_msg() const {return paused_dispatching;}
 	bool is_dispatching_msg() const {return dispatching;}
 
 	void congestion_control(bool enable) {congestion_controlling = enable;}
@@ -166,11 +153,11 @@ public:
 
 protected:
 	virtual bool do_start() = 0;
-	virtual bool do_send_msg() = 0; //ascs::socket will guarantee not call this function in more than one thread concurrently.
+	virtual bool do_send_msg() = 0;
 	virtual void do_recv_msg() = 0;
+	//ascs::socket will guarantee not call these 3 functions in more than one thread concurrently.
 
 	virtual bool is_closable() {return true;}
-	virtual bool is_send_allowed() {return !paused_sending && !stopped();} //can send msg or not(just put into send buffer)
 
 	//generally, you don't have to rewrite this to maintain the status of connections(TCP)
 	virtual void on_send_error(const asio::error_code& ec) {unified_out::error_out("send msg error (%d %s)", ec.value(), ec.message().data());}
@@ -197,10 +184,9 @@ protected:
 
 	//handling msg in om_msg_handle() will not block msg receiving on the same socket
 	//return true means msg been handled, false means msg cannot be handled right now, and socket will re-dispatch it asynchronously
-	//if link_down is true, no matter return true or false, socket will not maintain this msg anymore, and continue dispatch the next msg continuously
 	//
 	//notice: the msg is unpacked, using inconstant is for the convenience of swapping
-	virtual bool on_msg_handle(OutMsgType& msg, bool link_down) = 0;
+	virtual bool on_msg_handle(OutMsgType& msg) = 0;
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
 	//one msg has sent to the kernel buffer, msg is the right msg
@@ -213,17 +199,21 @@ protected:
 	virtual void on_all_msg_send(InMsgType& msg) {}
 #endif
 
-	//subclass notify shutdown event, not thread safe
+	//subclass notify shutdown event
 	void close()
 	{
 		if (started_)
 		{
-			started_ = false;
-
-			if (is_closable())
+			scope_atomic_lock lock(start_atomic);
+			if (started_ && lock.locked())
 			{
-				set_async_calling(true);
-				set_timer(TIMER_DELAY_CLOSE, ASCS_DELAY_CLOSE * 1000 + 50, [this](auto id)->bool {return this->timer_handler(id);});
+				started_ = false;
+
+				if (is_closable())
+				{
+					set_async_calling(true);
+					set_timer(TIMER_DELAY_CLOSE, ASCS_DELAY_CLOSE * 1000 + 50, [this](auto id)->bool {return this->timer_handler(id);});
+				}
 			}
 		}
 	}
@@ -234,10 +224,10 @@ protected:
 	{
 #ifndef ASCS_FORCE_TO_USE_MSG_RECV_BUFFER
 		decltype(temp_msg_buffer) temp_buffer;
-		if (!temp_msg_buffer.empty() && !paused_dispatching && !congestion_controlling)
+		if (!temp_msg_buffer.empty() && !congestion_controlling)
 		{
 			auto_duration(stat.handle_time_1_sum);
-			for (auto iter = std::begin(temp_msg_buffer); !paused_dispatching && !congestion_controlling && iter != std::end(temp_msg_buffer);)
+			for (auto iter = std::begin(temp_msg_buffer); !congestion_controlling && iter != std::end(temp_msg_buffer);)
 				if (on_msg(*iter))
 					temp_msg_buffer.erase(iter++);
 				else
@@ -262,7 +252,7 @@ protected:
 		}
 	}
 
-	//return false if receiving buffer is empty or dispatching not allowed (include io_service stopped)
+	//return false if receiving buffer is empty
 	bool dispatch_msg()
 	{
 		if (!dispatching)
@@ -281,26 +271,10 @@ protected:
 		return dispatching;
 	}
 
-	//return false if receiving buffer is empty or dispatching not allowed (include io_service stopped)
+	//return false if receiving buffer is empty
 	bool do_dispatch_msg()
 	{
-		if (paused_dispatching)
-			;
-		else if (stopped())
-		{
-#ifndef ASCS_DISCARD_MSG_WHEN_LINK_DOWN
-			if (!last_dispatch_msg.empty())
-				on_msg_handle(last_dispatch_msg, true);
-#endif
-			typename out_container_type::lock_guard lock(recv_msg_buffer);
-#ifndef ST_ASIO_DISCARD_MSG_WHEN_LINK_DOWN
-			while (recv_msg_buffer.try_dequeue_(last_dispatch_msg))
-				on_msg_handle(last_dispatch_msg, true);
-#endif
-			recv_msg_buffer.clear();
-			last_dispatch_msg.clear();
-		}
-		else if (!last_dispatch_msg.empty() || recv_msg_buffer.try_dequeue(last_dispatch_msg))
+		if (!last_dispatch_msg.empty() || recv_msg_buffer.try_dequeue(last_dispatch_msg))
 		{
 			post([this]() {this->msg_handler();});
 			return true;
@@ -345,9 +319,7 @@ private:
 		case TIMER_DELAY_CLOSE:
 			if (!is_last_async_call())
 			{
-				stop_all_timer();
-				revive_timer(TIMER_DELAY_CLOSE);
-
+				stop_all_timer(TIMER_DELAY_CLOSE);
 				return true;
 			}
 			else if (lowest_layer().is_open())
@@ -357,7 +329,6 @@ private:
 			}
 			on_close();
 			set_async_calling(false);
-
 			break;
 		default:
 			assert(false);
@@ -371,7 +342,7 @@ private:
 	{
 		auto begin_time = statistic::now();
 		stat.dispatch_dealy_sum += begin_time - last_dispatch_msg.begin_time;
-		bool re = on_msg_handle(last_dispatch_msg, false); //must before next msg dispatching to keep sequence
+		bool re = on_msg_handle(last_dispatch_msg); //must before next msg dispatching to keep sequence
 		auto end_time = statistic::now();
 		stat.handle_time_2_sum += end_time - begin_time;
 
@@ -403,17 +374,13 @@ protected:
 	in_container_type send_msg_buffer;
 	out_container_type recv_msg_buffer;
 	std::list<out_msg> temp_msg_buffer; //the size of this list is always very small, so std::list is enough (std::list::size maybe has linear complexity)
-	//subclass will invoke handle_msg() when got some msgs. if these msgs can't be pushed into recv_msg_buffer because of:
-	// 1. msg dispatching suspended;
-	// 2. congestion control opened;
-	//ascs::socket will delay 50 milliseconds(non-blocking) to invoke handle_msg() again, and now, as you known, temp_msg_buffer is used to hold these msgs temporarily.
+	//subclass will invoke handle_msg() when got some msgs. if these msgs can't be dispatched via on_msg() because of congestion control opened,
+	//ascs::socket will delay 50 milliseconds(non-blocking) to invoke handle_msg() again, temp_msg_buffer is used to hold these msgs temporarily.
 
 	volatile bool sending;
-	bool paused_sending;
 	std::atomic_flag send_atomic;
 
 	volatile bool dispatching;
-	bool paused_dispatching;
 	std::atomic_flag dispatch_atomic;
 
 	volatile bool congestion_controlling;

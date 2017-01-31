@@ -26,7 +26,7 @@ void file_socket::reset() {trans_end(); server_socket::reset();}
 //we can handle msg very fast, so we don't use recv buffer
 bool file_socket::on_msg(out_msg_type& msg) {handle_msg(msg); return true;}
 #endif
-bool file_socket::on_msg_handle(out_msg_type& msg, bool link_down) {handle_msg(msg); return true;}
+bool file_socket::on_msg_handle(out_msg_type& msg) {handle_msg(msg); return true;}
 //msg handling end
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY

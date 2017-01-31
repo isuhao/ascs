@@ -15,6 +15,10 @@
  * 1. concurrentqueue is not a FIFO queue (it is by design), navigate to the following links for more deatils:
  *  https://github.com/cameron314/concurrentqueue/issues/6
  *  https://github.com/cameron314/concurrentqueue/issues/52
+ *  if you're using concurrentqueue, please play attention, this is by design.
+ * 2. heartbeat mechanism cannot work properly between windows (at least win-10) and Ubuntu (at least Ubuntu-16.04).
+ * 3. UDP doesn't support heartbeat because UDP doesn't support OOB data.
+ * 4. SSL doesn't support heartbeat (maybe I missed an option, I'm not familiar with SSL).
  *
  * 2016.9.25	version 1.0.0
  * Based on st_asio_wrapper 1.2.0.
@@ -85,10 +89,19 @@
  * Fix bug: In extreme cases, messages may get starved in send buffer and will not be sent until arrival of next message.
  * Fix bug: Sometimes, connector_base cannot reconnect to the server after link broken.
  *
- * known issues:
- * 1. heartbeat mechanism cannot work properly between windows (at least win-10) and Ubuntu (at least Ubuntu-16.04).
- * 2. UDP doesn't support heartbeat because UDP doesn't support OOB data.
- * 3. SSL doesn't support heartbeat (maybe I missed an option, I'm not familiar with SSL).
+ * 2017.3.x		version 1.2.0
+ * Not support pausing message sending and dispatching any more, because they bring complexity and race condition,
+ *  and are not very useful.
+ * Drop ASCS_DISCARD_MSG_WHEN_LINK_DOWN macro and related logic, because it brings complexity and race condition,
+ *  and are not very useful.
+ * Rename i_packer::reset_state and i_unpacker::reset_state to i_packer::reset and i_unpacker::reset.
+ * Rename function is_send_allowed to is_ready, it also means ready to receive messages since pausing message sending been dropped.
+ * Move handshake from ssl::server_base to ssl::server_socket_base.
+ * Make ssl shutting down thread safe.
+ * Expand enum tcp::socket::shutdown_states, now it's able to represent all SOCKET status (connected, shutting down and broken),
+ *  so rename it to link_status.
+ * Enhancement class timer.
+ * Fix bug: before on_close() to be called, socket::start can be called (by user) falsely.
  *
  */
 
@@ -188,9 +201,6 @@ static_assert(ASCS_DELAY_CLOSE >= 0, "delay close duration must be bigger than o
 
 //after sending buffer became empty, call ascs::socket::on_all_msg_send()
 //#define ASCS_WANT_ALL_MSG_SEND_NOTIFY
-
-//when link down, msgs in receiving buffer (already unpacked) will be discarded.
-//#define ASCS_DISCARD_MSG_WHEN_LINK_DOWN
 
 //max number of objects object_pool can hold.
 #ifndef ASCS_MAX_OBJECT_NUM

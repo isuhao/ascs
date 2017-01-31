@@ -37,14 +37,14 @@ public:
 	server_socket_base(Server& server_, Arg& arg) : super(server_.get_service_pump(), arg), server(server_) {}
 
 	//reset all, be ensure that there's no any operations performed on this socket when invoke it
-	//please note, when reuse this socket, object_pool will invoke reset(), child must re-write it to initialize all member variables,
-	//and then do not forget to invoke server_socket_base::reset() to initialize father's member variables
+	//notice, when reusing this socket, object_pool will invoke reset(), child must re-write this to initialize
+	//all member variables, and then do not forget to invoke father's reset() to initialize father's member variables
 	virtual void reset() {super::reset();}
 
 	void disconnect() {force_shutdown();}
 	void force_shutdown()
 	{
-		if (super::shutdown_states::FORCE != this->shutdown_state)
+		if (super::link_status::FORCE_SHUTTING_DOWN != this->status)
 			show_info("server link:", "been shut down.");
 
 		super::force_shutdown();
@@ -56,7 +56,9 @@ public:
 	//this function is not thread safe, please note.
 	void graceful_shutdown(bool sync = false)
 	{
-		if (!this->is_shutting_down())
+		if (this->is_broken())
+			return force_shutdown();
+		else if (!this->is_shutting_down())
 			show_info("server link:", "being shut down gracefully.");
 
 		if (super::graceful_shutdown(sync))
@@ -82,16 +84,14 @@ public:
 protected:
 	virtual bool do_start()
 	{
-		if (!this->stopped())
-		{
-			this->last_interact_time = time(nullptr);
-			if (ASCS_HEARTBEAT_INTERVAL > 0)
-				this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
-			this->do_recv_msg();
-			return true;
-		}
+		this->status = super::link_status::CONNECTED;
+		this->last_interact_time = time(nullptr);
+		if (ASCS_HEARTBEAT_INTERVAL > 0)
+			this->set_timer(TIMER_HEARTBEAT_CHECK, ASCS_HEARTBEAT_INTERVAL * 1000, [this](auto id)->bool {return this->check_heartbeat(ASCS_HEARTBEAT_INTERVAL);});
+		this->send_msg(); //send buffer may have msgs, send them
+		this->do_recv_msg();
 
-		return false;
+		return true;
 	}
 
 	virtual void on_unpack_error() {unified_out::error_out("can not unpack msg."); this->force_shutdown();}
@@ -103,9 +103,9 @@ protected:
 #ifdef ASCS_CLEAR_OBJECT_INTERVAL
 		this->force_shutdown();
 #else
+		this->status = super::link_status::BROKEN;
 		server.del_client(this->shared_from_this());
 #endif
-		this->shutdown_state = super::shutdown_states::NONE;
 	}
 
 	//unit is second
@@ -137,7 +137,7 @@ private:
 	{
 		assert(TIMER_ASYNC_SHUTDOWN == id);
 
-		if (super::shutdown_states::GRACEFUL == this->shutdown_state)
+		if (super::link_status::GRACEFUL_SHUTTING_DOWN == this->status)
 		{
 			--loop_num;
 			if (loop_num > 0)

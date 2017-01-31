@@ -48,8 +48,6 @@ using namespace ascs::ext::tcp;
 #define QUIT_COMMAND	"quit"
 #define RESTART_COMMAND	"restart"
 #define RECONNECT_COMMAND "reconnect"
-#define SUSPEND_COMMAND	"suspend"
-#define RESUME_COMMAND	"resume"
 
 int main(int argc, const char* argv[])
 {
@@ -85,11 +83,6 @@ int main(int argc, const char* argv[])
 		}
 		else if (RECONNECT_COMMAND == str)
 			client.graceful_shutdown(true);
-		//the following two commands demonstrate how to suspend msg sending, no matter recv buffer been used or not
-		else if (SUSPEND_COMMAND == str)
-			client.suspend_send_msg(true);
-		else if (RESUME_COMMAND == str)
-			client.suspend_send_msg(false);
 		else
 			client.safe_send_msg(str);
 	}

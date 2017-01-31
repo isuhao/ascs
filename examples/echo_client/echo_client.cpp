@@ -51,8 +51,6 @@ using namespace ascs::ext::tcp;
 #define RESTART_COMMAND	"restart"
 #define LIST_ALL_CLIENT	"list_all_client"
 #define LIST_STATUS		"status"
-#define SUSPEND_COMMAND	"suspend"
-#define RESUME_COMMAND	"resume"
 
 static bool check_msg;
 
@@ -120,7 +118,7 @@ protected:
 	//this virtual function doesn't exists if ASCS_FORCE_TO_USE_MSG_RECV_BUFFER been defined
 	virtual bool on_msg(out_msg_type& msg) {handle_msg(msg); return true;}
 #endif
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {handle_msg(msg); return true;}
+	virtual bool on_msg_handle(out_msg_type& msg) {handle_msg(msg); return true;}
 	//msg handling end
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
@@ -355,19 +353,22 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 }
 
 static bool is_testing;
-void start_test(int repeat_times, char model, echo_client& client, size_t send_thread_num, size_t msg_num, size_t msg_len, char msg_fill)
+void start_test(int repeat_times, char mode, echo_client& client, size_t send_thread_num, size_t msg_num, size_t msg_len, char msg_fill)
 {
 	for (int i = 0; i < repeat_times; ++i)
 	{
 		printf("this is the %d / %d test.\n", i + 1, repeat_times);
 		client.clear_status();
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY
-		if (0 == model)
+		if (0 == mode)
 			send_msg_one_by_one(client, msg_num, msg_len, msg_fill);
 		else
-			puts("if ASCS_WANT_MSG_SEND_NOTIFY defined, only support model 0!");
+		{
+			puts("if ASCS_WANT_MSG_SEND_NOTIFY defined, only support mode 0!");
+			break;
+		}
 #else
-		if (0 == model)
+		if (0 == mode)
 			send_msg_concurrently(client, send_thread_num, msg_num, msg_len, msg_fill);
 		else
 			send_msg_randomly(client, msg_num, msg_len, msg_fill);
@@ -448,11 +449,6 @@ int main(int argc, const char* argv[])
 			puts("");
 			puts(client.get_statistic().to_string().data());
 		}
-		//the following two commands demonstrate how to suspend msg dispatching, no matter recv buffer been used or not
-		else if (SUSPEND_COMMAND == str)
-			client.do_something_to_all([](const auto& item) {item->suspend_dispatch_msg(true);});
-		else if (RESUME_COMMAND == str)
-			client.do_something_to_all([](const auto& item) {item->suspend_dispatch_msg(false);});
 		else if (LIST_ALL_CLIENT == str)
 			client.list_all_object();
 		else if (!str.empty())
@@ -488,7 +484,7 @@ int main(int argc, const char* argv[])
 			size_t msg_num = 1024;
 			size_t msg_len = 1024; //must greater than or equal to sizeof(size_t)
 			auto msg_fill = '0';
-			char model = 0; //0 broadcast, 1 randomly pick one link per msg
+			char mode = 0; //0 broadcast, 1 randomly pick one link per msg
 			auto repeat_times = 1;
 
 			auto parameters = split_string(str);
@@ -506,20 +502,20 @@ int main(int argc, const char* argv[])
 				std::max((size_t) atoi(iter++->data()), sizeof(size_t))); //include seq
 #endif
 			if (iter != std::end(parameters)) msg_fill = *iter++->data();
-			if (iter != std::end(parameters)) model = *iter++->data() - '0';
+			if (iter != std::end(parameters)) mode = *iter++->data() - '0';
 			if (iter != std::end(parameters)) repeat_times = std::max(atoi(iter++->data()), 1);
 
-			if (0 != model && 1 != model)
-				puts("unrecognized model!");
+			if (0 != mode && 1 != mode)
+				puts("unrecognized mode!");
 			else if (is_testing)
 				puts("testing has not finished yet!");
 			else
 			{
-				printf("test parameters after adjustment: " ASCS_SF " " ASCS_SF " %c %d\n", msg_num, msg_len, msg_fill, model);
+				printf("test parameters after adjustment: " ASCS_SF " " ASCS_SF " %c %d\n", msg_num, msg_len, msg_fill, mode);
 				puts("performance test begin, this application will have no response during the test!");
 
 				is_testing = true;
-				std::thread([=, &client]() {start_test(repeat_times, model, client, send_thread_num, msg_num, msg_len, msg_fill);}).detach();
+				std::thread([=, &client]() {start_test(repeat_times, mode, client, send_thread_num, msg_num, msg_len, msg_fill);}).detach();
 			}
 		}
 	}

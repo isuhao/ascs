@@ -23,7 +23,7 @@ protected:
 	//we can handle msg very fast, so we don't use recv buffer
 	virtual bool on_msg(out_msg_type& msg);
 #endif
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down);
+	virtual bool on_msg_handle(out_msg_type& msg);
 	//msg handling end
 
 #ifdef ASCS_WANT_MSG_SEND_NOTIFY

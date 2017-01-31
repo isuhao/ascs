@@ -73,7 +73,7 @@ protected:
 		return re;
 	}
 
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down)
+	virtual bool on_msg_handle(out_msg_type& msg)
 	{
 		auto re = direct_send_msg(std::move(msg));
 		if (re)
@@ -88,7 +88,7 @@ protected:
 	}
 #else
 	//if we used receiving buffer, congestion control will become much simpler, like this:
-	virtual bool on_msg_handle(out_msg_type& msg, bool link_down) {return direct_send_msg(std::move(msg));}
+	virtual bool on_msg_handle(out_msg_type& msg) {return direct_send_msg(std::move(msg));}
 #endif
 	//msg handling end
 };
