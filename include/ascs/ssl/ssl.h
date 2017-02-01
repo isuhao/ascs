@@ -66,10 +66,10 @@ public:
 	}
 
 protected:
-	virtual bool do_start() //connect or handshake
+	virtual bool do_start() //add handshake
 	{
 		if (!this->is_connected())
-			this->lowest_layer().async_connect(this->server_addr, this->make_handler_error([this](const auto& ec) {this->connect_handler(ec);}));
+			super::do_start();
 		else if (!authorized_)
 			this->next_layer().async_handshake(asio::ssl::stream_base::client, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
 		else
@@ -116,18 +116,6 @@ protected:
 	}
 
 private:
-	void connect_handler(const asio::error_code& ec)
-	{
-		if (!ec)
-		{
-			this->status = super::link_status::CONNECTED;
-			this->on_connect();
-			do_start();
-		}
-		else
-			this->prepare_next_reconnect(ec);
-	}
-
 	void handshake_handler(const asio::error_code& ec)
 	{
 		on_handshake(ec);
@@ -192,7 +180,7 @@ public:
 	void graceful_shutdown(bool sync = false) {if (!shutdown_ssl()) super::force_shutdown();}
 
 protected:
-	virtual bool do_start() //handshake
+	virtual bool do_start() //add handshake
 	{
 		if (!authorized_)
 			this->next_layer().async_handshake(asio::ssl::stream_base::server, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
