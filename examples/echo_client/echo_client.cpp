@@ -437,19 +437,7 @@ int main(int argc, const char* argv[])
 		std::string str;
 		std::getline(std::cin, str);
 		if (str.empty())
-			continue;
-		else if (is_testing)
-		{
-			puts("testing has not finished yet!");
-			continue;
-		}
-		else if (QUIT_COMMAND == str)
-			sp.stop_service();
-		else if (RESTART_COMMAND == str)
-		{
-			sp.stop_service();
-			sp.start_service(thread_num);
-		}
+			;
 		else if (LIST_STATUS == str)
 		{
 			printf("link #: " ASCS_SF ", valid links: " ASCS_SF ", invalid links: " ASCS_SF "\n", client.size(), client.valid_size(), client.invalid_object_size());
@@ -458,6 +446,15 @@ int main(int argc, const char* argv[])
 		}
 		else if (LIST_ALL_CLIENT == str)
 			client.list_all_object();
+		else if (is_testing)
+			puts("testing has not finished yet!");
+		else if (QUIT_COMMAND == str)
+			sp.stop_service();
+		else if (RESTART_COMMAND == str)
+		{
+			sp.stop_service();
+			sp.start_service(thread_num);
+		}
 		else
 		{
 			if ('+' == str[0] || '-' == str[0])
