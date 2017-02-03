@@ -195,7 +195,7 @@ public:
 
 	void disconnect() {force_shutdown();}
 	void force_shutdown() {graceful_shutdown();}
-	void graceful_shutdown(bool sync = false) {if (!shutdown_ssl(sync)) super::force_shutdown();}
+	void graceful_shutdown(bool sync = true) {if (!shutdown_ssl(sync)) super::force_shutdown();}
 
 protected:
 	virtual bool do_start() //add handshake
@@ -226,7 +226,7 @@ protected:
 			unified_out::error_out("handshake failed: %s", ec.message().data());
 	}
 
-	bool shutdown_ssl(bool sync = false)
+	bool shutdown_ssl(bool sync = true)
 	{
 		if (!sync)
 			unified_out::error_out("ascs only support sync mode when shutting down asio::ssl::stream!");
