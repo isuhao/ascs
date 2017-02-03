@@ -28,6 +28,10 @@ template <typename Packer, typename Unpacker, typename Socket = asio::ssl::strea
 	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename> class OutContainer = ASCS_OUTPUT_CONTAINER>
 class connector_base : public tcp::connector_base<Packer, Unpacker, Socket, InQueue, InContainer, OutQueue, OutContainer>
 {
+#if defined(ASCS_REUSE_OBJECT) && !defined(ASCS_REUSE_SSL_STREAM)
+	#error please define ASCS_REUSE_SSL_STREAM macro explicitly if you need asio::ssl::stream to be reusable!
+#endif
+
 protected:
 	typedef tcp::connector_base<Packer, Unpacker, Socket, InQueue, InContainer, OutQueue, OutContainer> super;
 
@@ -171,6 +175,10 @@ template<typename Packer, typename Unpacker, typename Server = i_server, typenam
 	template<typename, typename> class OutQueue = ASCS_OUTPUT_QUEUE, template<typename> class OutContainer = ASCS_OUTPUT_CONTAINER>
 class server_socket_base : public tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer>
 {
+#if defined(ASCS_REUSE_OBJECT) && !defined(ASCS_REUSE_SSL_STREAM)
+	#error please define ASCS_REUSE_SSL_STREAM macro explicitly if you need asio::ssl::stream to be reusable!
+#endif
+
 protected:
 	typedef tcp::server_socket_base<Packer, Unpacker, Server, Socket, InQueue, InContainer, OutQueue, OutContainer> super;
 

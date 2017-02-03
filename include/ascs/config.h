@@ -334,9 +334,6 @@ static_assert(ASCS_HEARTBEAT_MAX_ABSENCE > 0, "heartbeat absence must be bigger 
 //i tried many ways, onle one way can make asio::ssl::stream reusable, which is:
 // don't call any shutdown functions of asio::ssl::stream, just call asio::ip::tcp::socket's shutdown function,
 // this seems not a normal procedure, but it works, i believe that asio's defect caused this problem.
-#if defined(ASCS_REUSE_OBJECT) && !defined(ASCS_REUSE_SSL_STREAM)
-	#error please define ASCS_REUSE_SSL_STREAM macro explicitly if you need asio::ssl::stream to be reusable!
-#endif
 //configurations
 
 #endif /* _ASCS_CONFIG_H_ */
