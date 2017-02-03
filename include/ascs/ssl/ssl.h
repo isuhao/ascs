@@ -21,10 +21,6 @@
 #include "../tcp/server_socket.h"
 #include "../tcp/server.h"
 
-#ifdef ASCS_REUSE_OBJECT
-	#error asio::ssl::stream not support reusing!
-#endif
-
 namespace ascs { namespace ssl {
 
 template <typename Packer, typename Unpacker, typename Socket = asio::ssl::stream<asio::ip::tcp::socket>,
@@ -39,31 +35,38 @@ public:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx), authorized_(false) {this->need_reconnect = false;}
+	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx), authorized_(false)
+	{
+#ifndef ASCS_REUSE_SSL_STREAM
+		this->need_reconnect = false;
+#endif
+	}
 
 	virtual bool is_ready() {return authorized_ && super::is_ready();}
-	virtual void reset() {authorized_ = false; super::reset(); this->need_reconnect = false;}
+	virtual void reset()
+	{
+		authorized_ = false;
+		super::reset();
+#ifndef ASCS_REUSE_SSL_STREAM
+		this->need_reconnect = false;
+#endif
+	}
 	bool authorized() const {return authorized_;}
 
 	void disconnect(bool reconnect = false) {force_shutdown(reconnect);}
-	void force_shutdown(bool reconnect = false)
-	{
-		if (reconnect)
-			unified_out::error_out("asio::ssl::stream not support reconnecting!");
-
-		if (!shutdown_ssl())
-			super::force_shutdown(false);
-	}
-
-	//ssl only support sync mode, sync parameter will be ignored
+	void force_shutdown(bool reconnect = false) {graceful_shutdown(reconnect);}
+#ifdef ASCS_REUSE_SSL_STREAM
+	void graceful_shutdown(bool reconnect = false, bool sync = true) {if (!shutdown_ssl(sync)) super::force_shutdown(reconnect);}
+#else
 	void graceful_shutdown(bool reconnect = false, bool sync = true)
 	{
 		if (reconnect)
-			unified_out::error_out("asio::ssl::stream not support reconnecting!");
+			unified_out::error_out("you canot reuse asio::ssl::stream since macro ASCS_REUSE_SSL_STREAM not defined!");
 
-		if (!shutdown_ssl())
-			super::force_shutdown(false);
+		if (!shutdown_ssl(sync))
+			super::force_shutdown(false); //not support reusing, ignore reconnect parameter, it will always be false
 	}
+#endif
 
 protected:
 	virtual bool do_start() //add handshake
@@ -81,7 +84,8 @@ protected:
 	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
 	virtual void on_recv_error(const asio::error_code& ec)
 	{
-		authorized_ = false;
+		if (authorized_)
+			shutdown_ssl();
 
 		std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
 		super::on_recv_error(ec);
@@ -95,8 +99,14 @@ protected:
 			unified_out::error_out("handshake failed: %s", ec.message().data());
 	}
 
-	bool shutdown_ssl()
+	bool shutdown_ssl(bool sync = true)
 	{
+		if (!sync)
+			unified_out::error_out("ascs only support sync mode when shutting down asio::ssl::stream!");
+
+#ifdef ASCS_REUSE_SSL_STREAM
+		return authorized_ = false;
+#else
 		bool re = false;
 		if (is_ready())
 		{
@@ -106,13 +116,14 @@ protected:
 
 			asio::error_code ec;
 			std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
-			this->next_layer().shutdown(ec);
+			this->next_layer().shutdown(ec); //asca only support sync mode, ignore sync parameter, it will always be true
 			lock.unlock();
 
-			re = !ec;
+			re = !ec || asio::error::eof == ec; //the endpoint who initiated a shutdown will get error eof.
 		}
 
 		return re;
+#endif
 	}
 
 private:
@@ -175,9 +186,8 @@ public:
 	bool authorized() const {return authorized_;}
 
 	void disconnect() {force_shutdown();}
-	void force_shutdown() {if (!shutdown_ssl()) super::force_shutdown();}
-	//ssl only support sync mode, sync parameter will be ignored
-	void graceful_shutdown(bool sync = false) {if (!shutdown_ssl()) super::force_shutdown();}
+	void force_shutdown() {graceful_shutdown();}
+	void graceful_shutdown(bool sync = false) {if (!shutdown_ssl(sync)) super::force_shutdown();}
 
 protected:
 	virtual bool do_start() //add handshake
@@ -193,7 +203,8 @@ protected:
 	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
 	virtual void on_recv_error(const asio::error_code& ec)
 	{
-		authorized_ = false;
+		if (authorized_)
+			shutdown_ssl();
 
 		std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
 		super::on_recv_error(ec);
@@ -207,8 +218,14 @@ protected:
 			unified_out::error_out("handshake failed: %s", ec.message().data());
 	}
 
-	bool shutdown_ssl()
+	bool shutdown_ssl(bool sync = false)
 	{
+		if (!sync)
+			unified_out::error_out("ascs only support sync mode when shutting down asio::ssl::stream!");
+
+#ifdef ASCS_REUSE_SSL_STREAM
+		return authorized_ = false;
+#else
 		bool re = false;
 		if (is_ready())
 		{
@@ -218,13 +235,14 @@ protected:
 
 			asio::error_code ec;
 			std::unique_lock<std::shared_mutex> lock(shutdown_mutex);
-			this->next_layer().shutdown(ec);
+			this->next_layer().shutdown(ec); //asca only support sync mode, ignore sync parameter, it will always be true
 			lock.unlock();
 
-			re = !ec;
+			re = !ec || asio::error::eof == ec; //the endpoint who initiated a shutdown will get eof error.
 		}
 
 		return re;
+#endif
 	}
 
 private:

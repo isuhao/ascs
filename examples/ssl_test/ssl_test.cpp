@@ -3,6 +3,8 @@
 
 //configuration
 #define ASCS_SERVER_PORT		9527
+#define ASCS_REUSE_OBJECT //use objects pool
+#define ASCS_REUSE_SSL_STREAM
 //#define ASCS_FORCE_TO_USE_MSG_RECV_BUFFER //force to use the msg recv buffer
 #define ASCS_ENHANCED_STABILITY
 //#define ASCS_DEFAULT_PACKER replaceable_packer<>
@@ -16,6 +18,7 @@ using namespace ascs::ext::ssl;
 #define QUIT_COMMAND	"quit"
 #define RESTART_COMMAND	"restart"
 #define RECONNECT_COMMAND "reconnect"
+#define SHOW_ALL_LINKS	"show_all_links"
 
 int main(int argc, const char* argv[])
 {
@@ -70,25 +73,32 @@ int main(int argc, const char* argv[])
 		if (QUIT_COMMAND == str)
 		{
 			sp.stop_service(&client_);
-			sleep(1);
 			sp.stop_service();
 		}
+		else if (SHOW_ALL_LINKS == str)
+		{
+			puts("server:");
+			printf("link #: " ASCS_SF ", invalid links: " ASCS_SF "\n", server_.size(), server_.invalid_object_size());
+			server_.list_all_object();
+
+			puts("\nclient:");
+			printf("link #: " ASCS_SF ", valid links: " ASCS_SF ", invalid links: " ASCS_SF "\n", client_.size(), client_.valid_size(), client_.invalid_object_size());
+		}
+#ifndef ASCS_REUSE_SSL_STREAM
 		else if (RESTART_COMMAND == str || RECONNECT_COMMAND == str)
-			puts("I still not find a way to reuse a asio::ssl::stream,\n"
-				"it can reconnect to the server, but can not re-handshake with the server,\n"
-				"if somebody knows how to fix this defect, please tell me, thanks in advance.");
-		/*
+			puts("please define macro ASCS_REUSE_SSL_STREAM to test this feature.");
+#else
 		else if (RESTART_COMMAND == str)
 		{
 			sp.stop_service(&client_);
-			sleep(1);
 			sp.stop_service();
 
 			sp.start_service();
 		}
 		else if (RECONNECT_COMMAND == str)
+//			server_.graceful_shutdown();
 			client_.graceful_shutdown(true);
-		*/
+#endif
 		else
 			server_.broadcast_msg(str);
 	}

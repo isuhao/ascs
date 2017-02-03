@@ -18,7 +18,6 @@
  *  if you're using concurrentqueue, please play attention, this is by design.
  * 2. heartbeat mechanism cannot work properly between windows (at least win-10) and Ubuntu (at least Ubuntu-16.04).
  * 3. UDP doesn't support heartbeat because UDP doesn't support OOB data.
- * 4. SSL doesn't support heartbeat (maybe I missed an option, I'm not familiar with SSL).
  *
  * 2016.9.25	version 1.0.0
  * Based on st_asio_wrapper 1.2.0.
@@ -100,8 +99,9 @@
  * Make ssl shutting down thread safe.
  * Expand enum tcp::socket::shutdown_states, now it's able to represent all SOCKET status (connected, shutting down and broken),
  *  so rename it to link_status.
- * Enhancement class timer.
+ * Enhance class timer.
  * Fix bug: before on_close() to be called, socket::start can be called (by user) falsely.
+ * Optimize ssl objects, now ssl::connector_base and ssl::server_socket_base are reusable, just need you to define macro ASCS_REUSE_SSL_STREAM.
  *
  */
 
@@ -328,6 +328,15 @@ template<typename T> using concurrent_queue = moodycamel::ConcurrentQueue<T>;
 static_assert(ASCS_HEARTBEAT_MAX_ABSENCE > 0, "heartbeat absence must be bigger than zero.");
 //if no any messages been sent or received, nor any heartbeats been received within
 //ASCS_HEARTBEAT_INTERVAL * ASCS_HEARTBEAT_MAX_ABSENCE second(s), shut down the link.
+
+//#define ASCS_REUSE_SSL_STREAM
+//if you need ssl::connector_base to be able to reconnect the server, or to open object pool in ssl::object_pool, you must define this macro.
+//i tried many ways, onle one way can make asio::ssl::stream reusable, which is:
+// don't call any shutdown functions of asio::ssl::stream, just call asio::ip::tcp::socket's shutdown function,
+// this seems not a normal procedure, but it works, i believe that asio's defect caused this problem.
+#if defined(ASCS_REUSE_OBJECT) && !defined(ASCS_REUSE_SSL_STREAM)
+	#error please define ASCS_REUSE_SSL_STREAM macro explicitly if you need asio::ssl::stream to be reusable!
+#endif
 //configurations
 
 #endif /* _ASCS_CONFIG_H_ */

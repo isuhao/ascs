@@ -209,7 +209,8 @@ private:
 		if (!lock.locked())
 			return;
 
-		status = link_status::FORCE_SHUTTING_DOWN;
+		if (!is_broken())
+			status = link_status::FORCE_SHUTTING_DOWN;
 		this->stop_all_timer();
 		this->close();
 
