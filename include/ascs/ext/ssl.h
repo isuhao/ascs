@@ -28,11 +28,11 @@
 namespace ascs { namespace ext { namespace ssl {
 
 typedef ascs::ssl::connector_base<ASCS_DEFAULT_PACKER, ASCS_DEFAULT_UNPACKER> connector;
-typedef ascs::single_socket_service<ascs::ext::ssl::connector> single_client;
-typedef ascs::ssl::client_base<ascs::ext::ssl::connector> client;
+typedef ascs::single_socket_service<connector> single_client;
+typedef ascs::ssl::client_base<connector> client;
 
 typedef ascs::ssl::server_socket_base<ASCS_DEFAULT_PACKER, ASCS_DEFAULT_UNPACKER> server_socket;
-typedef ascs::ssl::server_base<ascs::ext::ssl::server_socket> server;
+typedef ascs::ssl::server_base<server_socket> server;
 
 }}} //namespace
 

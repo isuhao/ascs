@@ -82,6 +82,7 @@ int main(int argc, const char* argv[])
 			printf("link #: " ASCS_SF ", invalid links: " ASCS_SF "\n", server_.size(), server_.invalid_object_size());
 			server_.list_all_object();
 
+			//if you used single_client, comment out following codes.
 			puts("\nclient:");
 			printf("link #: " ASCS_SF ", valid links: " ASCS_SF ", invalid links: " ASCS_SF "\n", client_.size(), client_.valid_size(), client_.invalid_object_size());
 			client_.list_all_object();
@@ -93,6 +94,7 @@ int main(int argc, const char* argv[])
 //			server_.at(0)->graceful_shutdown();
 //			server_.graceful_shutdown(server_.at(0));
 			client_.graceful_shutdown(client_.at(0));
+//			client_.graceful_shutdown(false); //if you used single_client
 #else
 		else if (RESTART_COMMAND == str)
 		{
@@ -108,6 +110,7 @@ int main(int argc, const char* argv[])
 //			server_.at(0)->graceful_shutdown();
 //			server_.graceful_shutdown(server_.at(0));
 			client_.at(0)->graceful_shutdown(true);
+//			client_.graceful_shutdown(true); //if you used single_client
 #endif
 		else
 			server_.broadcast_msg(str);
