@@ -48,6 +48,9 @@ protected:
 			unified_out::error_out("handshake failed: %s", ec.message().data());
 	}
 
+	void handle_handshake(const asio::error_code& ec)
+		{on_handshake(ec); if (ec) Socket::force_shutdown(); else {authorized_ = true; Socket::do_start();}}
+
 	bool shutdown_ssl(bool sync = true)
 	{
 		if (!sync)
@@ -111,21 +114,9 @@ public:
 	using super::TIMER_BEGIN;
 	using super::TIMER_END;
 
-	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx)
-	{
-#ifndef ASCS_REUSE_SSL_STREAM
-		this->need_reconnect = false;
-#endif
-	}
+	connector_base(asio::io_service& io_service_, asio::ssl::context& ctx) : super(io_service_, ctx) {clear_reconnect_indicator();}
 
-	virtual void reset()
-	{
-		super::reset();
-
-#ifndef ASCS_REUSE_SSL_STREAM
-		this->need_reconnect = false;
-#endif
-	}
+	virtual void reset() {super::reset(); clear_reconnect_indicator();}
 
 	void disconnect(bool reconnect = false) {force_shutdown(reconnect);}
 	void force_shutdown(bool reconnect = false) {graceful_shutdown(reconnect);}
@@ -143,30 +134,18 @@ protected:
 		if (!this->is_connected())
 			super::do_start();
 		else if (!this->authorized())
-			this->next_layer().async_handshake(asio::ssl::stream_base::client, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
-		else
-			super::do_start();
+			this->next_layer().async_handshake(asio::ssl::stream_base::client, this->make_handler_error([this](const auto& ec) {this->handle_handshake(ec);}));
 
 		return true;
 	}
 
-#ifndef ASCS_REUSE_SSL_STREAM
+#ifdef ASCS_REUSE_SSL_STREAM
+	void clear_reconnect_indicator() {}
+#else
+	void clear_reconnect_indicator() {this->need_reconnect = false;}
 	virtual int prepare_reconnect(const asio::error_code& ec) {return -1;}
 #endif
 	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
-
-private:
-	void handshake_handler(const asio::error_code& ec)
-	{
-		this->on_handshake(ec);
-		if (!ec)
-		{
-			this->authorized_ = true;
-			do_start();
-		}
-		else
-			force_shutdown(false);
-	}
 };
 
 template<typename Object>
@@ -213,30 +192,12 @@ protected:
 	virtual bool do_start() //add handshake
 	{
 		if (!this->authorized())
-			this->next_layer().async_handshake(asio::ssl::stream_base::server, this->make_handler_error([this](const auto& ec) {this->handshake_handler(ec);}));
-		else
-			super::do_start();
+			this->next_layer().async_handshake(asio::ssl::stream_base::server, this->make_handler_error([this](const auto& ec) {this->handle_handshake(ec);}));
 
 		return true;
 	}
 
 	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
-
-private:
-	void handshake_handler(const asio::error_code& ec)
-	{
-		this->on_handshake(ec);
-		if (!ec)
-		{
-			this->authorized_ = true;
-			do_start();
-		}
-		else
-		{
-			force_shutdown();
-			this->server.del_client(this->shared_from_this());
-		}
-	}
 };
 
 template<typename Socket, typename Pool = object_pool<Socket>, typename Server = i_server>

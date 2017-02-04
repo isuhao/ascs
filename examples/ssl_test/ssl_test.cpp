@@ -84,6 +84,7 @@ int main(int argc, const char* argv[])
 
 			puts("\nclient:");
 			printf("link #: " ASCS_SF ", valid links: " ASCS_SF ", invalid links: " ASCS_SF "\n", client_.size(), client_.valid_size(), client_.invalid_object_size());
+			client_.list_all_object();
 		}
 #ifndef ASCS_REUSE_SSL_STREAM
 		else if (RESTART_COMMAND == str || RECONNECT_COMMAND == str)
