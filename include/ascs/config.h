@@ -101,7 +101,8 @@
  *  so rename it to link_status.
  * Enhance class timer.
  * Fix bug: before on_close() to be called, socket::start can be called (by user) falsely.
- * Optimize ssl objects, now ssl::connector_base and ssl::server_socket_base are reusable, just need you to define macro ASCS_REUSE_SSL_STREAM.
+ * Refactor and Optimize ssl objects, now ssl::connector_base and ssl::server_socket_base are reusable,
+ *  just need you to define macro ASCS_REUSE_SSL_STREAM.
  *
  */
 

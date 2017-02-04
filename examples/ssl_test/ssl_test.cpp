@@ -19,6 +19,7 @@ using namespace ascs::ext::ssl;
 #define RESTART_COMMAND	"restart"
 #define RECONNECT_COMMAND "reconnect"
 #define SHOW_ALL_LINKS	"show_all_links"
+#define SHUTDOWN_LINK	"shutdown"
 
 int main(int argc, const char* argv[])
 {
@@ -87,6 +88,10 @@ int main(int argc, const char* argv[])
 #ifndef ASCS_REUSE_SSL_STREAM
 		else if (RESTART_COMMAND == str || RECONNECT_COMMAND == str)
 			puts("please define macro ASCS_REUSE_SSL_STREAM to test this feature.");
+		else if (SHUTDOWN_LINK == str)
+//			server_.at(0)->graceful_shutdown();
+//			server_.graceful_shutdown(server_.at(0));
+			client_.graceful_shutdown(client_.at(0));
 #else
 		else if (RESTART_COMMAND == str)
 		{
@@ -98,6 +103,10 @@ int main(int argc, const char* argv[])
 		else if (RECONNECT_COMMAND == str)
 //			server_.graceful_shutdown();
 			client_.graceful_shutdown(true);
+		else if (SHUTDOWN_LINK == str)
+//			server_.at(0)->graceful_shutdown();
+//			server_.graceful_shutdown(server_.at(0));
+			client_.at(0)->graceful_shutdown(true);
 #endif
 		else
 			server_.broadcast_msg(str);
