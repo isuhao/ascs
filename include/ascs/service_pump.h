@@ -61,6 +61,7 @@ public:
 	typedef std::list<object_type> container_type;
 
 	service_pump() : started(false) {}
+	~service_pump() {stop_service();}
 
 	object_type find(int id)
 	{
