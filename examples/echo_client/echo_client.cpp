@@ -348,8 +348,7 @@ void send_msg_concurrently(echo_client& client, size_t send_thread_num, size_t m
 	do_something_to_all(threads, [](auto& t) {t.join();});
 	begin_time.stop();
 
-	printf("\ntime spent statistics: %f seconds.\n", begin_time.elapsed());
-	printf("speed: %f(*2) MBps.\n", total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
+	printf(" finished in %f seconds, speed: %f(*2) MBps.\n", begin_time.elapsed(), total_msg_bytes / begin_time.elapsed() / 1024 / 1024);
 }
 
 static bool is_testing;
