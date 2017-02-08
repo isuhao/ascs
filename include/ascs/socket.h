@@ -200,22 +200,31 @@ protected:
 #endif
 
 	//subclass notify shutdown event
-	void close()
+	bool close()
 	{
-		if (started_)
-		{
-			scope_atomic_lock lock(start_atomic);
-			if (started_ && lock.locked())
-			{
-				started_ = false;
+		if (!started_)
+			return false;
 
-				if (is_closable())
-				{
-					set_async_calling(true);
-					set_timer(TIMER_DELAY_CLOSE, ASCS_DELAY_CLOSE * 1000 + 50, [this](auto id)->bool {return this->timer_handler(id);});
-				}
-			}
+		scope_atomic_lock lock(start_atomic);
+		if (!started_ || !lock.locked())
+			return false;
+
+		started_ = false;
+		stop_all_timer();
+
+		if (lowest_layer().is_open())
+		{
+			asio::error_code ec;
+			lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 		}
+
+		if (is_closable())
+		{
+			set_async_calling(true);
+			set_timer(TIMER_DELAY_CLOSE, ASCS_DELAY_CLOSE * 1000 + 50, [this](auto id)->bool {return this->timer_handler(id);});
+		}
+
+		return true;
 	}
 
 	//call this in subclasses' recv_handler only

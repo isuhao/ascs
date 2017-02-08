@@ -92,9 +92,16 @@ int main(int argc, const char* argv[])
 			puts("please define macro ASCS_REUSE_SSL_STREAM to test this feature.");
 		else if (SHUTDOWN_LINK == str)
 //			server_.at(0)->graceful_shutdown();
-//			server_.graceful_shutdown(server_.at(0));
+//			server_.at(0)->graceful_shutdown(true);
+//			server_.at(0)->force_shutdown();
+
 			client_.graceful_shutdown(client_.at(0));
-//			client_.graceful_shutdown(false); //if you used single_client
+//			client_.graceful_shutdown(client_.at(0), false);
+//			client_.force_shutdown(client_.at(0));
+
+//			client_.graceful_shutdown(); //if you used single_client
+//			client_.graceful_shutdown(false, false); //if you used single_client
+//			client_.force_shutdown(); //if you used single_client
 #else
 		else if (RESTART_COMMAND == str)
 		{
@@ -107,10 +114,35 @@ int main(int argc, const char* argv[])
 //			server_.graceful_shutdown();
 			client_.graceful_shutdown(true);
 		else if (SHUTDOWN_LINK == str)
+			//async shutdown, client will reconnect to the server
 //			server_.at(0)->graceful_shutdown();
-//			server_.graceful_shutdown(server_.at(0));
+//			server_.at(0)->force_shutdown();
+
+			//sync shutdown, client will reconnect to the server
+//			server_.at(0)->graceful_shutdown(true);
+
+			//sync shutdown and reconnect to the server
 			client_.at(0)->graceful_shutdown(true);
+//			client_.at(0)->force_shutdown(true);
 //			client_.graceful_shutdown(true); //if you used single_client
+//			client_.force_shutdown(true); //if you used single_client
+
+			//async shutdown and reconnect to the server
+//			client_.at(0)->graceful_shutdown(true, false);
+//			client_.graceful_shutdown(true, false); //if you used single_client
+
+			//sync shutdown and not reconnect to the server
+//			client_.at(0)->graceful_shutdown();
+//			client_.at(0)->force_shutdown();
+//			client_.graceful_shutdown(client_.at(0));
+//			client_.force_shutdown(client_.at(0));
+//			client_.graceful_shutdown(); //if you used single_client
+//			client_.force_shutdown(); //if you used single_client
+
+			//async shutdown and not reconnect to the server
+//			client_.at(0)->graceful_shutdown(false, false);
+//			client_.graceful_shutdown(client_.at(0), false);
+//			client_.graceful_shutdown(false, false); //if you used single_client
 #endif
 		else
 			server_.broadcast_msg(str);

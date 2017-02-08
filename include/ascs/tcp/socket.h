@@ -40,12 +40,7 @@ protected:
 	template<typename Arg> socket_base(asio::io_service& io_service_, Arg& arg) : super(io_service_, arg) {first_init();}
 
 	//helper function, just call it in constructor
-	void first_init()
-	{
-		status = link_status::BROKEN;
-		unpacker_ = std::make_shared<Unpacker>();
-		shutdown_atomic.clear(std::memory_order_relaxed);
-	}
+	void first_init() {status = link_status::BROKEN; unpacker_ = std::make_shared<Unpacker>();}
 
 public:
 	virtual bool obsoleted() {return !is_shutting_down() && super::obsoleted();}
@@ -205,20 +200,9 @@ protected:
 private:
 	void shutdown()
 	{
-		scope_atomic_lock lock(shutdown_atomic);
-		if (!lock.locked())
-			return;
-
 		if (!is_broken())
-			status = link_status::FORCE_SHUTTING_DOWN;
-		this->stop_all_timer();
+			status = link_status::FORCE_SHUTTING_DOWN; //not thread safe because of this assignment
 		this->close();
-
-		if (this->lowest_layer().is_open())
-		{
-			asio::error_code ec;
-			this->lowest_layer().shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-		}
 	}
 
 	void recv_handler(const asio::error_code& ec, size_t bytes_transferred)
@@ -288,7 +272,6 @@ protected:
 	std::shared_ptr<i_unpacker<out_msg_type>> unpacker_;
 
 	volatile link_status status;
-	std::atomic_flag shutdown_atomic;
 
 	//heartbeat
 	time_t last_interact_time;

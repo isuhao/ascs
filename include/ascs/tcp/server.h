@@ -55,7 +55,13 @@ public:
 	virtual bool del_client(const std::shared_ptr<object>& client_ptr)
 	{
 		auto raw_client_ptr(std::dynamic_pointer_cast<Socket>(client_ptr));
-		return raw_client_ptr && this->del_object(raw_client_ptr) ? raw_client_ptr->force_shutdown(), true : false;
+		if (raw_client_ptr)
+		{
+			raw_client_ptr->force_shutdown();
+			return this->del_object(raw_client_ptr);
+		}
+		else
+			return false;
 	}
 
 	///////////////////////////////////////////////////
@@ -74,7 +80,7 @@ public:
 	void force_shutdown(typename Pool::object_ctype& client_ptr) {this->del_object(client_ptr); client_ptr->force_shutdown();}
 	void force_shutdown() {this->do_something_to_all([=](const auto& item) {item->force_shutdown();});}
 	void graceful_shutdown(typename Pool::object_ctype& client_ptr, bool sync = false) {this->del_object(client_ptr); client_ptr->graceful_shutdown(sync);}
-	void graceful_shutdown() {this->do_something_to_all([](const auto& item) {item->graceful_shutdown();});} //async must be false(the default value), or dead lock will occur.
+	void graceful_shutdown() {this->do_something_to_all([](const auto& item) {item->graceful_shutdown();});} //parameter sync must be false (the default value), or dead lock will occur.
 
 protected:
 	virtual bool init()
