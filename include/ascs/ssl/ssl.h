@@ -154,6 +154,7 @@ protected:
 	}
 
 #ifndef ASCS_REUSE_SSL_STREAM
+	virtual int prepare_reconnect(const asio::error_code& ec) {return -1;}
 	virtual void on_recv_error(const asio::error_code& ec) {this->need_reconnect = false; super::on_recv_error(ec);}
 #endif
 	virtual void on_unpack_error() {unified_out::info_out("can not unpack msg."); force_shutdown();}
