@@ -13,6 +13,7 @@
 //if there's a huge number of links, please reduce messge buffer via ASCS_MAX_MSG_NUM macro.
 //please think about if we have 512 links, how much memory we can accupy at most with default ASCS_MAX_MSG_NUM?
 //it's 2 * 1024 * 1024 * 512 = 1G
+#define ASCS_HEARTBEAT_INTERVAL	5
 
 //use the following macro to control the type of packer and unpacker
 #define PACKER_UNPACKER_TYPE	0

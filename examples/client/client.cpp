@@ -23,6 +23,7 @@
 //#define ASCS_HUGE_MSG
 //#define ASCS_MSG_BUFFER_SIZE (1024 * 1024)
 //#define ASCS_MAX_MSG_NUM 8 //reduce msg buffer size to reduce memory occupation
+#define ASCS_HEARTBEAT_INTERVAL	5
 //configuration
 
 //demonstrate how to use custom log system:

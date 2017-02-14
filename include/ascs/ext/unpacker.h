@@ -208,6 +208,11 @@ public:
 	{
 		if (0 == step) //the head been received
 		{
+#if ASIO_VERSION >= 101100 //1.11
+			assert(raw_buff.empty());
+			if (!allot_buffer()) //invalid msg, stop reading
+				return false;
+#endif
 			assert(!raw_buff.empty());
 			step = 1;
 		}
@@ -239,11 +244,10 @@ public:
 				return asio::detail::default_max_transfer_size;
 
 			assert(ASCS_HEAD_LEN == bytes_transferred);
-			auto cur_msg_len = ASCS_HEAD_N2H(head) - ASCS_HEAD_LEN;
-			if (cur_msg_len > ASCS_MSG_BUFFER_SIZE - ASCS_HEAD_LEN) //invalid msg, stop reading
+#if ASIO_VERSION < 101100 //1.11
+			if (!allot_buffer()) //invalid msg, stop reading
 				step = -1;
-			else
-				raw_buff.assign(cur_msg_len);
+#endif
 		}
 		else if (1 == step) //want the body
 		{
@@ -263,6 +267,17 @@ public:
 #else
 	virtual buffer_type prepare_next_recv() {return raw_buff.empty() ? asio::buffer((char*) &head, ASCS_HEAD_LEN) : asio::buffer(raw_buff.data(), raw_buff.size());}
 #endif
+
+protected:
+	bool allot_buffer()
+	{
+		auto cur_msg_len = ASCS_HEAD_N2H(head) - ASCS_HEAD_LEN;
+		if (cur_msg_len > ASCS_MSG_BUFFER_SIZE - ASCS_HEAD_LEN) //invalid size
+			return false;
+
+		raw_buff.assign(cur_msg_len);
+		return true;
+	}
 
 private:
 	ASCS_HEAD_TYPE head;
